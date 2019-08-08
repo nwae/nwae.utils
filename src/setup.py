@@ -3,7 +3,9 @@ from setuptools import setup
 setup(
     name='mozg.utils',
     version='1.0.0',
-    packages=[''],
+    packages=[
+        'mozg.utils'
+    ],
     package_dir={'': 'src'},
     url='',
     license='',
