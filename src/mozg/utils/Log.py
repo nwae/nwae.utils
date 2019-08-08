@@ -2,7 +2,7 @@
 
 import datetime as dt
 import time
-import mozg.common.util.StringUtils as su
+import mozg.utils.StringUtils as su
 import os
 
 #
@@ -174,6 +174,7 @@ class Log:
             f.write(timestamp + ': ' + s + '\n')
             f.close()
         except Exception as ex:
-            errmsg = 'Log file [' + logfile_name_today_date_prefix + '] don''t exist!'
+            errmsg = 'Log file [' + logfile_name_today_date_prefix\
+                     + '] don''t exist!. Exception message "' + str(ex)
             print(errmsg)
-            raise(ex)
+            raise Exception(errmsg)

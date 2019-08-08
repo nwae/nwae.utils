@@ -1,7 +1,7 @@
 #!/use/bin/python
 # --*-- coding: utf-8 --*--
 
-import mozg.common.util.StringUtils as su
+import mozg.utils.StringUtils as su
 
 
 class FileUtils(object):

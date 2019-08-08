@@ -1,8 +1,8 @@
 
 import pickle
 import os
-import mozg.common.util.LockFile as lockfile
-import mozg.common.util.Log as lg
+import mozg.utils.LockFile as lockfile
+import mozg.utils.Log as lg
 from inspect import currentframe, getframeinfo
 
 

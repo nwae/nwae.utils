@@ -1,6 +1,6 @@
 
 import json
-import mozg.common.util.Log as lg
+import mozg.utils.Log as lg
 from inspect import currentframe, getframeinfo
 
 
