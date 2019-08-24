@@ -113,13 +113,29 @@ if __name__ == '__main__':
             super(TaskThread, self).__init__()
             self.thread_name = thread_name
             self.sleep_time = sleep_time
+            self.stoprequest = threading.Event()
+
+        def join(self, timeout=None):
+            print('Thread ' + self.thread_name + ' join called.')
+            self.stoprequest.set()
+            super(TaskThread, self).join(timeout=timeout)
+            return
 
         def run(self):
+            # Break sleep into small pieces
+            quantum = 2
+            count = 0
             while True:
+                if self.stoprequest.isSet():
+                    print('Thread ' + self.thread_name + ' stop request received..')
+                    break
                 # Task is to sleep
-                time.sleep(self.sleep_time)
-                print('Sleep done for thread "' + str(self.thread_name) + '"..')
-                break
+                time.sleep(quantum)
+                count = count+1
+                if count*quantum > self.sleep_time:
+                    break
+            print('Sleep done for thread "' + str(self.thread_name) + '"..')
+
     lg.Log.LOGLEVEL = lg.Log.LOG_LEVEL_INFO
 
     t1 = TaskThread(thread_name='t1', sleep_time=5)
@@ -130,7 +146,7 @@ if __name__ == '__main__':
     tg.add_thread(new_thread_name=t1.thread_name, new_thread=t1)
     tg.add_thread(new_thread_name=t2.thread_name, new_thread=t2)
     tg.add_thread(new_thread_name=t3.thread_name, new_thread=t3)
-
+    #
     tg.start_thread_group()
     tg.start()
 
