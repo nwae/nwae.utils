@@ -67,6 +67,7 @@ class ThreadGroup(threading.Thread):
             th.start()
 
     def run(self):
+        sleep_while = 2
         lg.Log.important(
             str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
             + ': [' + str(self.thread_group_name) + '] Starting thread group..'
@@ -104,7 +105,7 @@ class ThreadGroup(threading.Thread):
                         str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
                         + ': [' + str(self.thread_group_name) + '] All threads OK.'
                     )
-            time.sleep(0.5)
+            time.sleep(sleep_while)
 
 
 if __name__ == '__main__':
@@ -125,19 +126,29 @@ if __name__ == '__main__':
             # Break sleep into small pieces
             quantum = 2
             count = 0
+            run_quantized_sleeps = True
             while True:
                 if self.stoprequest.isSet():
                     print('Thread ' + self.thread_name + ' stop request received..')
                     break
                 # Task is to sleep
-                time.sleep(quantum)
-                count = count+1
-                if count*quantum > self.sleep_time:
-                    break
+                if run_quantized_sleeps:
+                    time.sleep(quantum)
+                    count = count+1
+                    if count*quantum > self.sleep_time:
+                        break
+                else:
+                    time.sleep(self.sleep_time)
             print('Sleep done for thread "' + str(self.thread_name) + '"..')
 
     lg.Log.LOGLEVEL = lg.Log.LOG_LEVEL_INFO
 
+    #
+    # We demo starting t1 thread whose job is to sleep for 5 secs.
+    # t2 and t3 has a harder job to sleep for 500/800 secs.
+    # However when the the tg thread group detects that t1 is dead,
+    # its job is to kill t2 and t3.
+    #
     t1 = TaskThread(thread_name='t1', sleep_time=5)
     t2 = TaskThread(thread_name='t2', sleep_time=500)
     t3 = TaskThread(thread_name='t3', sleep_time=800)
@@ -146,7 +157,7 @@ if __name__ == '__main__':
     tg.add_thread(new_thread_name=t1.thread_name, new_thread=t1)
     tg.add_thread(new_thread_name=t2.thread_name, new_thread=t2)
     tg.add_thread(new_thread_name=t3.thread_name, new_thread=t3)
-    #
+
     tg.start_thread_group()
     tg.start()
 
