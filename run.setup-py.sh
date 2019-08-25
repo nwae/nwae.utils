@@ -10,10 +10,7 @@ rm -rf ./build/*
 $PYTHON src/setup.py bdist_wheel
 
 # Uninstall old mozg
-$PIP uninstall mozg.utils
+$PIP uninstall nwae.utils
 
 # Install back
 $PIP install dist/*.whl
-
-# Copy over to another project
-cp dist/*.whl ../../mozig/mozg.nlp/wheels

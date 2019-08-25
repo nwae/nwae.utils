@@ -1,15 +1,15 @@
 from setuptools import setup
 
 setup(
-    name='mozg.utils',
+    name='nwae.utils',
     version='1.0.0',
     packages=[
-        'mozg.utils'
+        'nwae.utils'
     ],
     package_dir={'': 'src'},
     url='',
     license='',
-    author='mark.tan',
-    author_email='mapktah@yandex.ru',
+    author='nwae',
+    author_email='705270564@qq.com',
     description='Basic Utilities'
 )
