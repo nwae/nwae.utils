@@ -14,3 +14,4 @@ src/mozg/utils/ObjectPersistence.py
 src/mozg/utils/Profiling.py
 src/mozg/utils/Rest.py
 src/mozg/utils/StringUtils.py
+src/mozg/utils/ThreadGroup.py

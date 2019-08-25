@@ -30,7 +30,7 @@ class Log:
 
     # Variables
     LOGFILE = ''
-    LOGLEVEL = LOG_LEVEL_IMPORTANT
+    LOGLEVEL = LOG_LEVEL_INFO
     DEBUG_PRINT_ALL_TO_SCREEN = False
     IS_LOG_TO_VARIABLE_LIST = False
 
