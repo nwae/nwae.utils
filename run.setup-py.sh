@@ -16,4 +16,4 @@ $PIP uninstall mozg.utils
 $PIP install dist/*.whl
 
 # Copy over to another project
-cp dist/*.whl ../mozg.nlp/wheels
+cp dist/*.whl ../../mozig/mozg.nlp/wheels
