@@ -1,8 +1,8 @@
 
 import pickle
 import os
-import mozg.utils.LockFile as lockfile
-import mozg.utils.Log as lg
+import nwae.utils.LockFile as lockfile
+import nwae.utils.Log as lg
 from inspect import currentframe, getframeinfo
 
 
@@ -109,8 +109,8 @@ class ObjectPersistence:
 
 
 if __name__ == '__main__':
-    obj_file_path = '/Users/mark.tan/Downloads/pickleObj.b'
-    lock_file_path = '/users/mark.tan/Downloads/.lock.pickleObj.b'
+    obj_file_path = '/tmp/pickleObj.b'
+    lock_file_path = '/tmp/.lock.pickleObj.b'
 
     obj = {
         'a': [1,2,3],

@@ -2,7 +2,7 @@
 import os
 import time as t
 import datetime as dt
-import mozg.utils.Log as lg
+import nwae.utils.Log as lg
 from inspect import currentframe, getframeinfo
 
 

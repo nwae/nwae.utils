@@ -5,7 +5,7 @@ import datetime as dt
 import time
 import re
 import sys
-import mozg.utils.Log as lg
+import nwae.utils.Log as lg
 from inspect import currentframe, getframeinfo
 
 

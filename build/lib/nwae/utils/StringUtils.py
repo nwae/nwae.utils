@@ -21,14 +21,11 @@ class StringUtils(object):
         return s
 
 
-def demo_1():
+if __name__ == '__main__':
     s = "  Privet Mir!  \n\r"
     print('[' + s + ']')
 
     # Demonstrating that newline is also removed
     ss = StringUtils.trim(s)
     print('[' + ss + ']')
-    return
-
-
-# demo_1()
+    exit(0)

@@ -1,7 +1,7 @@
 #!/use/bin/python
 # --*-- coding: utf-8 --*--
 
-import mozg.utils.StringUtils as su
+import nwae.utils.StringUtils as su
 
 
 class FileUtils(object):
@@ -60,14 +60,11 @@ class FileUtils(object):
         return(pv)
 
 
-# Demo to read this file itself
-def demo_1():
+if __name__ == '__main__':
+
     lines = FileUtils.read_text_file('FileUtils.py')
     for i in range(0, len(lines), 1):
         print(su.StringUtils.remove_newline(lines[i]))
 
     print(lines)
-    return
-
-
-# demo_1()
+    exit(0)

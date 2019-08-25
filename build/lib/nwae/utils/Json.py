@@ -1,6 +1,6 @@
 
 import json
-import mozg.utils.Log as lg
+import nwae.utils.Log as lg
 from inspect import currentframe, getframeinfo
 
 

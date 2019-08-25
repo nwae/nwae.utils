@@ -2,7 +2,7 @@
 
 import datetime as dt
 import time
-import mozg.utils.StringUtils as su
+import nwae.utils.StringUtils as su
 import os
 
 #

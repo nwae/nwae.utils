@@ -2,7 +2,7 @@
 import requests
 import urllib.parse
 import json
-import mozg.utils.Log as lg
+import nwae.utils.Log as lg
 from inspect import currentframe, getframeinfo
 
 
@@ -240,11 +240,4 @@ class Rest():
 
 
 if __name__ == '__main__':
-    lg.Log.DEBUG_PRINT_ALL_TO_SCREEN = True
-    lg.Log.LOGLEVEL = lg.Log.LOG_LEVEL_DEBUG_1
-    rest_util = Rest(url='http://13.231.33.215:5000/intent')
-    json_data = {'accid':3, 'botid':4, 'chatid':'abc123', 'txt':'存款'}
-    rest_response = rest_util.post(
-        data = json_data,
-    )
-    print(rest_response)
+    exit(0)
