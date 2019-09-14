@@ -188,3 +188,6 @@ if __name__ == '__main__':
 
     time.sleep(4)
     bconfig.reload_config()
+
+    print(bconfig.get_config(param='topdir'))
+    print(bconfig.get_config(param='abc'))
