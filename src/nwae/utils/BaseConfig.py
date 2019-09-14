@@ -5,6 +5,7 @@ import sys
 import nwae.utils.StringUtils as su
 import nwae.utils.Log as lg
 from inspect import currentframe, getframeinfo
+import datetime as dt
 
 
 #
@@ -13,6 +14,8 @@ from inspect import currentframe, getframeinfo
 class BaseConfig:
 
     PARAM_CONFIGFILE = 'configfile'
+
+    DEFAULT_RELOAD_EVERY_X_SECS = 300
 
     DEFAULT_LOGLEVEL = lg.Log.LOG_LEVEL_INFO
 
@@ -76,12 +79,30 @@ class BaseConfig:
 
     def __init__(
             self,
-            config_file
+            config_file,
+            reload_every_x_secs = DEFAULT_RELOAD_EVERY_X_SECS
     ):
+        self.config_file = config_file
+        self.last_updated_time = None
+        self.reload_every_x_secs = reload_every_x_secs
+        self.reload_config()
+
+    def reload_config(self):
+        tnow = dt.datetime.now()
+
+        if self.last_updated_time is not None:
+            tdif = tnow - self.last_updated_time
+            if tdif.total_seconds() <= self.reload_every_x_secs:
+                lg.Log.info(
+                    str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                    + ': Not yet expired ' + str(tdif.total_seconds()) + ' <= ' + str(self.reload_every_x_secs) + '.'
+                )
+                return
+
         # Param-Values
         self.param_value = {}
 
-        self.param_value[BaseConfig.PARAM_CONFIGFILE] = config_file
+        self.param_value[BaseConfig.PARAM_CONFIGFILE] = self.config_file
         if not os.path.isfile(self.get_config(param=BaseConfig.PARAM_CONFIGFILE)):
             raise Exception(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
@@ -90,7 +111,7 @@ class BaseConfig:
             )
 
         try:
-            f = open(config_file, 'r')
+            f = open(self.config_file, 'r')
             linelist_file = f.readlines()
             f.close()
 
@@ -118,14 +139,16 @@ class BaseConfig:
                         + ': Set param "' + str(param) + '" to "' + str(value) + '"'
                     )
 
+            self.last_updated_time = dt.datetime.now()
+
             lg.Log.important(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                + ': Read from app config file "' + str(config_file)
+                + ': Read from app config file "' + str(self.config_file)
                 + ', file lines:\n\r' + str(linelist) + ', properties\n\r' + str(self.param_value)
             )
         except Exception as ex:
             errmsg = str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)\
-                     + ': Error reading app config file "' + str(config_file)\
+                     + ': Error reading app config file "' + str(self.config_file)\
                      + '". Exception message ' + str(ex)
             lg.Log.critical(errmsg)
             raise Exception(errmsg)
@@ -133,5 +156,12 @@ class BaseConfig:
 
 if __name__ == '__main__':
     bconfig = BaseConfig(
-        config_file = '/usr/local/git/nwae/nwae/app.data/config/nwae.cf.local'
+        config_file = '/usr/local/git/nwae/nwae/app.data/config/nwae.cf.local',
+        reload_every_x_secs = 5
     )
+    import time
+    time.sleep(2)
+    bconfig.reload_config()
+
+    time.sleep(4)
+    bconfig.reload_config()
