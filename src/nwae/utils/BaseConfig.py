@@ -66,10 +66,11 @@ class BaseConfig:
         if param in self.param_value.keys():
             return self.param_value[param]
         else:
-            raise Exception(
-                str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+            errmsg =\
+                str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)\
                 + ': No such config param "' + str(param) + '"'
-            )
+            lg.Log.warning(errmsg)
+            return None
 
     def __init__(
             self,
@@ -105,8 +106,13 @@ class BaseConfig:
         if not os.path.isfile(self.config_file):
             raise Exception(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                + ': Configfile "' + str(self.config_file)
+                + ': Config file path "' + str(self.config_file)
                 + '" is not a valid file path!'
+            )
+        else:
+            lg.Log.info(
+                str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                + ': Config file path "' + str(self.config_file) + '" OK.'
             )
 
         try:
