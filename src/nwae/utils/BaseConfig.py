@@ -25,6 +25,7 @@ class BaseConfig:
     #
     @staticmethod
     def get_cmdline_params_and_init_config_singleton(
+            Derived_Class,
             reload_every_x_secs = DEFAULT_RELOAD_EVERY_X_SECS
     ):
         # Default values
@@ -44,23 +45,23 @@ class BaseConfig:
         if pv[BaseConfig.PARAM_CONFIGFILE] is None:
             raise Exception('"' + str(BaseConfig.PARAM_CONFIGFILE) + '" param not found on command line!')
 
-        cf_file = pv[BaseConfig.PARAM_CONFIGFILE]
-        if cf_file in BaseConfig.SINGLETON.keys():
+        configfile = pv[BaseConfig.PARAM_CONFIGFILE]
+        if configfile in BaseConfig.SINGLETON.keys():
             lg.Log.info(
                 str(BaseConfig.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                + ': Config Singleton from file "' + str(cf_file)
+                + ': Config Singleton from file "' + str(configfile)
                 + '" exists. Returning Singleton..'
             )
-            return BaseConfig.SINGLETON[cf_file]
+            return Derived_Class.SINGLETON[configfile]
 
         #
-        # !!!MOST IMPORTANT, top directory, otherwise all other config/NLP/training/etc. files we won't be able to find
+        # Instantiate the Derived Class, not this base config
         #
-        BaseConfig.SINGLETON[cf_file] = BaseConfig(
-            config_file = cf_file,
+        BaseConfig.SINGLETON[configfile] = Derived_Class(
+            config_file         = configfile,
             reload_every_x_secs = reload_every_x_secs
         )
-        return BaseConfig.SINGLETON[cf_file]
+        return BaseConfig.SINGLETON[configfile]
 
     def get_config(self, param):
         if param in self.param_value.keys():
