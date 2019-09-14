@@ -86,6 +86,18 @@ class BaseConfig:
         self.__mutex_reload_config = threading.Lock()
         self.reload_config()
 
+    def set_default_value_if_not_exist(
+            self,
+            param,
+            default_value
+    ):
+        if param not in self.param_value.keys():
+            self.param_value[param] = default_value
+            lg.Log.info(
+                str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                + ': Param "' + str(param) + ' do not exist, set to default value "' + str(default_value) + '".'
+            )
+
     def reload_config(
             self
     ):
