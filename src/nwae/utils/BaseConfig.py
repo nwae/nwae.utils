@@ -6,6 +6,7 @@ import nwae.utils.StringUtils as su
 import nwae.utils.Log as lg
 from inspect import currentframe, getframeinfo
 import datetime as dt
+import threading
 
 
 #
@@ -17,26 +18,18 @@ class BaseConfig:
 
     DEFAULT_RELOAD_EVERY_X_SECS = 300
 
-    DEFAULT_LOGLEVEL = lg.Log.LOG_LEVEL_INFO
-
-    SINGLETON = None
+    SINGLETON = {}
 
     #
     # Always call this method only to make sure we get singleton
     #
     @staticmethod
-    def get_cmdline_params_and_init_config_singleton():
-        if type(BaseConfig.SINGLETON) is BaseConfig:
-            lg.Log.info(
-                str(BaseConfig.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                + ': Config Singleton from file "' + str(BaseConfig.SINGLETON.CONFIGFILE)
-                + '" exists. Returning Singleton..'
-            )
-            return BaseConfig.SINGLETON
-
+    def get_cmdline_params_and_init_config_singleton(
+            reload_every_x_secs = DEFAULT_RELOAD_EVERY_X_SECS
+    ):
         # Default values
         pv = {
-            'configfile': None
+            BaseConfig.PARAM_CONFIGFILE: None
         }
         args = sys.argv
 
@@ -49,24 +42,25 @@ class BaseConfig:
                     pv[param] = value
 
         if pv[BaseConfig.PARAM_CONFIGFILE] is None:
-            raise Exception('"configfile" param not found on command line!')
+            raise Exception('"' + str(BaseConfig.PARAM_CONFIGFILE) + '" param not found on command line!')
+
+        cf_file = pv[BaseConfig.PARAM_CONFIGFILE]
+        if cf_file in BaseConfig.SINGLETON.keys():
+            lg.Log.info(
+                str(BaseConfig.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                + ': Config Singleton from file "' + str(cf_file)
+                + '" exists. Returning Singleton..'
+            )
+            return BaseConfig.SINGLETON[cf_file]
 
         #
         # !!!MOST IMPORTANT, top directory, otherwise all other config/NLP/training/etc. files we won't be able to find
         #
-        BaseConfig.SINGLETON = BaseConfig(
-            config_file = pv[BaseConfig.PARAM_CONFIGFILE]
+        BaseConfig.SINGLETON[cf_file] = BaseConfig(
+            config_file = cf_file,
+            reload_every_x_secs = reload_every_x_secs
         )
-        return BaseConfig.SINGLETON
-
-    def __getattr__(self, item):
-        if item in self.__dict__.keys():
-            return self.__dict__[item]
-        else:
-            raise Exception(
-                str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                + ': No such attribute "' + str(item) + '"'
-            )
+        return BaseConfig.SINGLETON[cf_file]
 
     def get_config(self, param):
         if param in self.param_value.keys():
@@ -85,13 +79,22 @@ class BaseConfig:
         self.config_file = config_file
         self.last_updated_time = None
         self.reload_every_x_secs = reload_every_x_secs
+
+        self.param_value = {}
+
+        self.__mutex_reload_config = threading.Lock()
         self.reload_config()
 
-    def reload_config(self):
+    def reload_config(
+            self
+    ):
         tnow = dt.datetime.now()
 
         if self.last_updated_time is not None:
             tdif = tnow - self.last_updated_time
+            #
+            # Not yet expired, no need to reload
+            #
             if tdif.total_seconds() <= self.reload_every_x_secs:
                 lg.Log.info(
                     str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
@@ -99,18 +102,18 @@ class BaseConfig:
                 )
                 return
 
-        # Param-Values
-        self.param_value = {}
-
-        self.param_value[BaseConfig.PARAM_CONFIGFILE] = self.config_file
-        if not os.path.isfile(self.get_config(param=BaseConfig.PARAM_CONFIGFILE)):
+        if not os.path.isfile(self.config_file):
             raise Exception(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                + ': Configfile "' + str(self.get_config(param=BaseConfig.PARAM_CONFIGFILE))
+                + ': Configfile "' + str(self.config_file)
                 + '" is not a valid file path!'
             )
 
         try:
+            self.__mutex_reload_config.acquire()
+            # Param-Values
+            tmp_param_value = {}
+
             f = open(self.config_file, 'r')
             linelist_file = f.readlines()
             f.close()
@@ -133,13 +136,14 @@ class BaseConfig:
                     # Standardize to lower
                     param = su.StringUtils.trim(arg_split[0].lower())
                     value = su.StringUtils.trim(arg_split[1])
-                    self.param_value[param] = value
+                    tmp_param_value[param] = value
                     lg.Log.important(
                         str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
                         + ': Set param "' + str(param) + '" to "' + str(value) + '"'
                     )
 
             self.last_updated_time = dt.datetime.now()
+            self.param_value = tmp_param_value
 
             lg.Log.important(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
@@ -152,14 +156,27 @@ class BaseConfig:
                      + '". Exception message ' + str(ex)
             lg.Log.critical(errmsg)
             raise Exception(errmsg)
+        finally:
+            self.__mutex_reload_config.release()
 
 
 if __name__ == '__main__':
+    # config_file = '/usr/local/git/nwae/nwae/app.data/config/nwae.cf.local'
+    import time
+    bconfig = BaseConfig.get_cmdline_params_and_init_config_singleton(
+        reload_every_x_secs = 2
+    )
+    bconfig2 = BaseConfig.get_cmdline_params_and_init_config_singleton()
+    time.sleep(1)
+    bconfig.reload_config()
+    time.sleep(1.1)
+    bconfig.reload_config()
+
     bconfig = BaseConfig(
         config_file = '/usr/local/git/nwae/nwae/app.data/config/nwae.cf.local',
         reload_every_x_secs = 5
     )
-    import time
+
     time.sleep(2)
     bconfig.reload_config()
 
