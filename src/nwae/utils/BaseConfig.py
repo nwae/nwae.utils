@@ -60,7 +60,7 @@ class BaseConfig:
         return BaseConfig.SINGLETON[configfile]
 
     def get_config(self, param):
-        if self.__is_file_last_updated_time_is_newer():
+        if self.is_file_last_updated_time_is_newer():
             self.reload_config()
         if param in self.param_value.keys():
             return self.param_value[param]
@@ -105,7 +105,7 @@ class BaseConfig:
                 + ': Config file path "' + str(self.config_file) + '" OK.'
             )
 
-    def __is_file_last_updated_time_is_newer(self):
+    def is_file_last_updated_time_is_newer(self):
         try:
             # Check if file time is newer
             ftime = os.path.getmtime(self.config_file)
@@ -143,6 +143,48 @@ class BaseConfig:
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
                 + ': Param "' + str(param) + ' do not exist, set to default value "' + str(default_value) + '".'
             )
+
+    def convert_value_to_boolean_type(
+            self,
+            param
+    ):
+        if param not in self.param_value.keys():
+            self.param_value[param] = False
+
+        if (self.param_value[param] == '1') or (self.param_value[param] == True):
+            self.param_value[param] = True
+        else:
+            self.param_value[param] = False
+        lg.Log.important(
+            str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+            + ': Convert to boolean param "' + str(param)
+            + '" set to "' + str(self.param_value[param]) + '".'
+        )
+
+    def convert_value_to_float_type(
+            self,
+            param,
+            default_val
+    ):
+        if param not in self.param_value.keys():
+            self.param_value[param] = default_val
+
+        try:
+            self.param_value[param] = float(self.param_value[param])
+        except Exception as ex_float_conversion:
+            lg.Log.error(
+                str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                + ': Failed to convert param "' + str(param) + '" value "' + str(self.param_value[param])
+                + '" to float type, set to default value ' + str(default_val)
+                + '. Exception message: ' + str(ex_float_conversion) + '.'
+            )
+            self.param_value[param] = default_val
+
+        lg.Log.critical(
+            str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+            + ': Convert to float param "' + str(param)
+            + '" set to ' + str(self.param_value[param]) + '.'
+        )
 
     def reload_config(
             self
