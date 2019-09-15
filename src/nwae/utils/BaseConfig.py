@@ -141,7 +141,7 @@ class BaseConfig:
             self.param_value[param] = default_value
             lg.Log.info(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                + ': Param "' + str(param) + ' do not exist, set to default value "' + str(default_value) + '".'
+                + ': Not found param "' + str(param) + ' set to default value "' + str(default_value) + '".'
             )
 
     def convert_value_to_boolean_type(
