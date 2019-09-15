@@ -186,7 +186,6 @@ class BaseConfig:
                         + ': Set param "' + str(param) + '" to "' + str(value) + '"'
                     )
 
-            self.last_updated_time = dt.datetime.now()
             self.param_value = tmp_param_value
 
             lg.Log.important(
