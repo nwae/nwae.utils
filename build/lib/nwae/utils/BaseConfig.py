@@ -73,10 +73,19 @@ class BaseConfig:
 
     def __init__(
             self,
-            config_file
+            config_file,
+            ignore_non_existant_config_file = False
     ):
         self.config_file = config_file
+        self.ignore_non_existant_config_file = ignore_non_existant_config_file
 
+        self.param_value = {}
+        self.__mutex_reload_config = threading.Lock()
+        self.file_updated_time = None
+
+        #
+        # This might throw exception
+        #
         self.__check_file_existence()
         self.file_updated_time = os.path.getmtime(self.config_file)
         lg.Log.important(
@@ -85,20 +94,18 @@ class BaseConfig:
             + str(dt.datetime.fromtimestamp(self.file_updated_time).strftime('%Y%m%d %H:%M:%S'))
             + '".'
         )
-
-        self.param_value = {}
-
-        self.__mutex_reload_config = threading.Lock()
         self.reload_config()
         return
 
     def __check_file_existence(self):
         if not os.path.isfile(self.config_file):
-            raise Exception(
-                str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                + ': Config file path "' + str(self.config_file)
+            errmsg = \
+                str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
+                + ': Config file path "' + str(self.config_file) \
                 + '" is not a valid file path!'
-            )
+            lg.Log.warning(errmsg)
+            if not self.ignore_non_existant_config_file:
+                raise Exception(errmsg)
         else:
             lg.Log.info(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
@@ -109,7 +116,7 @@ class BaseConfig:
         try:
             # Check if file time is newer
             ftime = os.path.getmtime(self.config_file)
-            is_file_newer = ftime > self.file_updated_time
+            is_file_newer = (self.file_updated_time is None) or (ftime > self.file_updated_time)
 
             if is_file_newer:
                 lg.Log.important(
@@ -129,7 +136,8 @@ class BaseConfig:
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)\
                 + ': Exception checking file updated time for config "' + str(self.config_file)\
                 + '", exception message: ' + str(ex) + '.'
-            lg.Log.error(errmsg)
+            if not self.ignore_non_existant_config_file:
+                lg.Log.error(errmsg)
             return False
 
     def set_default_value_if_not_exist(
@@ -141,7 +149,7 @@ class BaseConfig:
             self.param_value[param] = default_value
             lg.Log.info(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                + ': Param "' + str(param) + ' do not exist, set to default value "' + str(default_value) + '".'
+                + ': Not found param "' + str(param) + ' set to default value "' + str(default_value) + '".'
             )
 
     def convert_value_to_boolean_type(
@@ -239,8 +247,9 @@ class BaseConfig:
             errmsg = str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)\
                      + ': Error reading app config file "' + str(self.config_file)\
                      + '". Exception message ' + str(ex)
-            lg.Log.critical(errmsg)
-            raise Exception(errmsg)
+            if not self.ignore_non_existant_config_file:
+                lg.Log.critical(errmsg)
+                raise Exception(errmsg)
         finally:
             self.__mutex_reload_config.release()
 
@@ -265,7 +274,5 @@ if __name__ == '__main__':
 
     while True:
         time.sleep(1)
-        bconfig.reload_config()
-
         print(bconfig.get_config(param='topdir'))
-        print(bconfig.get_config(param='abc'))
+        # print(bconfig.get_config(param='abc'))
