@@ -208,7 +208,7 @@ class BaseConfig:
             # Param-Values
             tmp_param_value = {}
 
-            f = open(self.config_file, 'r')
+            f = open(self.config_file, 'r', encoding='utf-8')
             linelist_file = f.readlines()
             f.close()
             lg.Log.important(
