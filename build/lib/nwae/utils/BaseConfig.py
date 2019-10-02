@@ -208,15 +208,22 @@ class BaseConfig:
             # Param-Values
             tmp_param_value = {}
 
-            f = open(self.config_file, 'r')
+            f = open(self.config_file, 'r', encoding='utf-8')
             linelist_file = f.readlines()
             f.close()
+            lg.Log.important(
+                str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                + ': Config file "' + str(self.config_file) + '" read successfully: ' + str(linelist_file)
+            )
 
             linelist = []
             for line in linelist_file:
                 line = su.StringUtils.trim(su.StringUtils.remove_newline(line))
-                # Ignore comment lines, empty lines
-                if (line[0] == '#') or (line == ''):
+                # Ignore empty lines
+                if line == '':
+                    continue
+                # Ignore comment lines
+                if (line[0] == '#'):
                     continue
                 linelist.append(line)
 
