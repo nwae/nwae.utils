@@ -9,7 +9,7 @@ SCRIPT_NAME="$0"
 #   2. cf: config file
 #
 # The program to startup
-PROGRAM_NAME=""
+PROGRAM_NAME="SAMPLE PROGRAM"
 # Deploy configuration, whether local, live, staging, vpo, welton, etc.
 CF=""
 RESTART_SCRIPT="restart.sh"
