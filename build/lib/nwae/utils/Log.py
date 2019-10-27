@@ -5,27 +5,20 @@ import time
 import nwae.utils.StringUtils as su
 import os
 
-#
-# Logging levels by default:
-#   Level 0 - None, but Exceptions
-#   Level 1 - Only important messages, including Exceptions
-#   Level 2 - Loud enough to be able to troubleshoot production errors
-#   Level 3 - Only when running program in development mode
-#   Level 4 - Almost as good as stepping through the program
-#
 
-#
-# TODO Manage log files, change by day/etc to prevent too big growth
-#
 class Log:
 
+    #
     # Log Levels
+    #
     LOG_LEVEL_CRITICAL  = 0.0
     LOG_LEVEL_ERROR     = 1.0
     LOG_LEVEL_WARNING   = 2.0
     LOG_LEVEL_IMPORTANT = 2.5
+    # Standard level logging
     LOG_LEVEL_INFO      = 3.0
     LOG_LEVEL_DEBUG_1   = 4.0
+    # Almost as good as stepping through the code
     LOG_LEVEL_DEBUG_2   = 5.0
 
     # Variables
@@ -178,3 +171,7 @@ class Log:
                      + '] don''t exist!. Exception message "' + str(ex)
             print(errmsg)
             raise Exception(errmsg)
+
+
+if __name__ == '__main__':
+    Log.info('Test log info...')

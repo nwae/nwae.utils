@@ -13,5 +13,6 @@ src/nwae/utils/Log.py
 src/nwae/utils/ObjectPersistence.py
 src/nwae/utils/Profiling.py
 src/nwae/utils/Rest.py
+src/nwae/utils/SendMail.py
 src/nwae/utils/StringUtils.py
 src/nwae/utils/ThreadGroup.py
