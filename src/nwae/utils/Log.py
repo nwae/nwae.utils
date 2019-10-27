@@ -171,3 +171,7 @@ class Log:
                      + '] don''t exist!. Exception message "' + str(ex)
             print(errmsg)
             raise Exception(errmsg)
+
+
+if __name__ == '__main__':
+    Log.info('Test log info...')
