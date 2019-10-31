@@ -11,7 +11,7 @@ SCRIPT_DIR="./server.scripts"
 PYTHON_VER="3.6"
 USE_GUNICORN=0
 SOURCE_DIR="../src"
-COMPILE_MODULE="nwae"
+COMPILE_MODULE="."
 MODULE_TO_RUN="nwae.utils.Log"
 # Folders separated by ":"
 EXTERNAL_SRC_FOLDERS="../../nwae/src:../../../mozig/mozg.common/src"
