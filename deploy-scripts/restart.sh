@@ -74,19 +74,19 @@ fi
 #
 # STDOUT & STDERR FILES PATH
 #
-STDOUTFILE="../app.data/server/$CF.$PORT_INTENT.out."`date +%Y-%m-%d_%H%M%S`".log"
-STDERRFILE="../app.data/server/$CF.$PORT_INTENT.err."`date +%Y-%m-%d_%H%M%S`".log"
+STDOUTERRFILE="../app.data/server/$CF.$PORT.outerr."`date +%Y-%m-%d_%H%M%S`".log"
 echo ""
 echo ""
 echo "[$SCRIPT_NAME] ***** RESTARTING $PROGRAM_NAME $CF PORT $PORT *****"
 # Need to go to source folder
 echo "[$SCRIPT_NAME] Going into folder ../$SOURCE_DIR"
 cd "../$SOURCE_DIR" || echo "[$SCRIPT_NAME] ERROR Failed to go into source dir!"
-echo "[$SCRIPT_NAME] Executing script in folder "$(pwd)", configfile=$CONFIGFILE port=$PORT with out/err files $STDOUTFILE and $STDERRFILE"
+echo "[$SCRIPT_NAME] Executing in folder $(pwd), configfile=$CONFIGFILE port=$PORT with out/err files $STDOUTERRFILE"
 if ! ./run.gunicorn.sh \
         configfile="$CONFIGFILE" \
         port="$PORT" \
-        1>"$STDOUTFILE" 2>"$STDERRFILE" &; then
+        >"$STDOUTERRFILE" 2>&1 &
+then
   echo "[$SCRIPT_NAME] ERROR Failed to run $PROGRAM_NAME."
 fi
 disown
@@ -99,23 +99,12 @@ sleep 5
 #
 # Ask user to review STDOUT log
 #
-echo "[$SCRIPT_NAME] ********************* USER STDOUT REVIEW ($PROGRAM_NAME STARTUP) *********************"
+echo "[$SCRIPT_NAME] ********************* USER STDOUT / STDERR REVIEW ($PROGRAM_NAME STARTUP) *********************"
 tail -30 "$STDOUTFILE"
-echo "[$SCRIPT_NAME] Please review tail results (last 30 lines) from startup for stdout log ($STDOUTFILE) above."
+echo "[$SCRIPT_NAME] Please review tail results (last 30 lines) from startup for stdout log ($STDOUTERRFILE) above."
 read -p "[$SCRIPT_NAME] Ok to proceed? (yes/no): " ok_to_proceed
 if [ "$ok_to_proceed" != "yes" ]; then
   echo "[$SCRIPT_NAME] ERROR. User refuse to proceed after viewing stdout log. Exiting.."
-  exit 1
-fi
-#
-# Ask user to review STDERR log
-#
-echo "[$SCRIPT_NAME] ********************* USER STDERR REVIEW ($PROGRAM_NAME STARTUP) *********************"
-tail -100 "$STDERRFILE"
-echo "[$SCRIPT_NAME] Please review tail results (last 100 lines) from startup for stderr log ($STDERRFILE) above."
-read -p "[$SCRIPT_NAME] Ok to proceed? (yes/no): " ok_to_proceed
-if [ "$ok_to_proceed" != "yes" ]; then
-  echo "[$SCRIPT_NAME] ERROR. User refuse to proceed after viewing stderr log. Exiting.."
   exit 1
 fi
 
@@ -134,5 +123,5 @@ if [ "$ok_to_proceed" != "yes" ]; then
 fi
 
 # Go back to where we came from
-cd -
+cd - || echo "[$SCRIPT_NAME] ERROR Failed to go back to original folder."
 
