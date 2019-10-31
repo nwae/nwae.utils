@@ -4,9 +4,6 @@
 SCRIPT_NAME="$0"
 PROGRAM_NAME="SAMPLE PROGRAM"
 
-# SERVER_SCRIPT_DIR="server.scripts"
-SOURCE_DIR="src"
-
 # Default config is nothing
 CF=""
 
@@ -78,11 +75,8 @@ STDOUTERRFILE="../app.data/server/$CF.$PORT.outerr."`date +%Y-%m-%d_%H%M%S`".log
 echo ""
 echo ""
 echo "[$SCRIPT_NAME] ***** RESTARTING $PROGRAM_NAME $CF PORT $PORT *****"
-# Need to go to source folder
-echo "[$SCRIPT_NAME] Going into folder ../$SOURCE_DIR"
-cd "../$SOURCE_DIR" || echo "[$SCRIPT_NAME] ERROR Failed to go into source dir!"
 echo "[$SCRIPT_NAME] Executing in folder $(pwd), configfile=$CONFIGFILE port=$PORT with out/err files $STDOUTERRFILE"
-if ! ./run.gunicorn.sh \
+if ! ./run.python.sh \
         configfile="$CONFIGFILE" \
         port="$PORT" \
         >"$STDOUTERRFILE" 2>&1 &
@@ -121,7 +115,3 @@ if [ "$ok_to_proceed" != "yes" ]; then
   echo "[$SCRIPT_NAME] ERROR. User refuse to proceed after viewing return value from automatic tests. Exiting.."
   exit 1
 fi
-
-# Go back to where we came from
-cd - || echo "[$SCRIPT_NAME] ERROR Failed to go back to original folder."
-

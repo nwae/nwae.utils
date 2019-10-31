@@ -1,13 +1,13 @@
 #!/bin/bash
 
-# Assumed running from folder <project>/server.scripts
-
 # Script name is the first parameter on command line
 SCRIPT_NAME="$0"
 
 #
 # Modify only these variables
 #
+# Where this script is relative to project directory
+SCRIPT_DIR="./server.scripts"
 PYTHON_VER="3.6"
 USE_GUNICORN=0
 SOURCE_DIR="../src"
@@ -31,11 +31,6 @@ fi
 # Convert to gigabytes
 RAM_MEMORY_GB="$((RAM_MEMORY / (1024*1024)))"
 echo "[$SCRIPT_NAME] Total RAM $RAM_MEMORY_GB GB."
-
-#
-# This is where the Python module directory is
-#
-SCRIPT_DIR=`pwd | sed s/.*[/]//g`
 
 #
 # This is the project directory
@@ -189,4 +184,8 @@ else
             configfile="$CONFIGFILE" \
             port="$PORT"
 fi
-cd -
+
+if ! cd - ; then
+  echo "[$SCRIPT_NAME] ERROR Can't change back to original folder."
+  exit 1
+fi
