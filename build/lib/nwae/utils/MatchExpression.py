@@ -147,10 +147,11 @@ class MatchExpression:
                         var_values[var] = int(value)
                     elif data_type == MatchExpression.MEX_TYPE_FLOAT:
                         var_values[var] = float(value)
-                    elif data_type == MatchExpression.MEX_TYPE_NUMBER:
+                    elif data_type in (
+                            MatchExpression.MEX_TYPE_NUMBER,
+                            MatchExpression.MEX_TYPE_TIME
+                    ):
                         var_values[var] = str(value)
-                    elif data_type == MatchExpression.MEX_TYPE_TIME:
-                        var_values[var] = value
                     else:
                         raise Exception('Unrecognized type "' + str(data_type) + '".')
                 except Exception as ex_int_conv:
@@ -280,14 +281,14 @@ class MatchExpression:
 
     def __init__(
             self,
-            encoding_str,
+            pattern,
             sentence
     ):
-        self.encoding_str = encoding_str
+        self.pattern = pattern
         self.sentence = sentence
         lg.Log.debug(
             str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
-            + ': Daehua Model Encoding "' + str(self.encoding_str)
+            + ': Pattern "' + str(self.pattern)
             + '" question "' + str(self.sentence) + '".'
         )
         #
@@ -300,10 +301,10 @@ class MatchExpression:
     def __decode_str(self):
         lg.Log.info(
             str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
-            + ': Mex Encoding string: ' + str(self.encoding_str)
+            + ': Mex pattern: ' + str(self.pattern)
         )
         self.mex_obj_vars = MatchExpression.decode_vars_object_str(
-            s = self.encoding_str
+            s = self.pattern
         )
         lg.Log.info(
             str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
@@ -345,26 +346,27 @@ if __name__ == '__main__':
             ]
         },
         {
-            'mex': 'acc,number,尾号&账号;m,int,月;d,int,日;t,time,完成;amt,float,民币&币;bal,float,余额',
+            'mex': 'acc,number,계정&번호;m,int,월;d,int,일;t,time,에;amt,float,원;bal,float,잔액',
             'sentences': [
-                '【中国农业银行】您尾号0579账户10月17日09:27完成代付交易人民币2309.95，余额2932.80。',
-                '【中国农业银行】您尾号0579账户10月17日09:27:55完成代付交易人民币2309.95，余额2932.80。',
-                '【中国农业银行】您尾号0579账户10月17日完成09:27代付交易人民币2309.95，余额2932.80。',
-                '【中国农业银行】您尾号0579账户10月17日完成09:27:55代付交易人民币2309.95，余额2932.80。',
-                '【中国农业银行】 您尾号 0579 账户 10月 17日 完成 09:27 代付交易 人民币 2309.95，余额 2932.80。',
-                '【中国农业银行】 您尾号  0579 账户 10月 17日 完成 09:27:55 代付交易 人民币 2309.95，余额 2932.80。',
+                '번호 0011 계정은 9 월 23 일 10:12 에 1305.67 원, 잔액 9999.77.',
+                '번호 0022 계정은 9 월 23 일 10:15:55 에 1405.78 원, 잔액 8888.77.',
+                '번호 0033 계정은 9 월 23 일 完成023:24 에 1505.89 원, 잔액 7777.77.',
+                '번호 0044 계정은 9 월 23 일 完成23:24:55 에 5501.99 원, 잔액 6666.77.',
+                '번호0055계정은9월23일11:37에1111.22원，잔액5555.77.',
+                '번호0066계정은9월24일11:37:55에2222.33원，잔액4444.77',
+                '번호0777계정은25일 完成11:38:55에3333.44원',
             ]
         }
     ]
 
     for test in tests:
-        encoding = test['mex']
+        pattern = test['mex']
         sentences = test['sentences']
 
         for sent in sentences:
             cmobj = MatchExpression(
-                encoding_str = encoding,
-                sentence     = sent
+                pattern  = pattern,
+                sentence = sent
             )
             params = cmobj.get_params()
             print(params)
