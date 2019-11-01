@@ -29,20 +29,12 @@ class MatchExpression:
     MEX_OBJECT_VARS_TYPE = 'type'
     MEX_OBJECT_VARS_NAMES = 'names'
 
-    # We use '-*-' to open and close the encoding language
-    MEX_ENCODING_CHARS_START_END = '[-][*][-](.*)[-][*][-]'
-
-    # Separates the vars and answer object. E.g.
-    #    vars==m,float,mass&m;c,float,light&speed::answer==$$m * ($$c * $$c)
-    MEX_OBJECT_SEPARATOR = '::'
-    MEX_OBJECT_DEFINITION_SYMBOL = '=='
     # Separates the different variables definition. e.g. 'm,float,mass&m;c,float,light&speed'
     MEX_VAR_DEFINITION_SEPARATOR = ';'
     # Separates the description of the same variable. e.g. 'm,float,mass&m'
     MEX_VAR_DESCRIPTION_SEPARATOR = ','
     # Separates the names of a variable. e.g. 'mass&m'
     MEX_VAR_NAMES_SEPARATOR = '&'
-    MEX_VAR_MARKUP_IN_QUESTION = '[$]{2}'
 
     MEX_TYPE_FLOAT  = 'float'
     MEX_TYPE_INT    = 'int'
