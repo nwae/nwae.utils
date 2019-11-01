@@ -153,6 +153,8 @@ class MatchExpression:
                         var_values[var] = int(value)
                     elif data_type == MatchExpression.MEX_TYPE_FLOAT:
                         var_values[var] = float(value)
+                    elif data_type == MatchExpression.MEX_TYPE_NUMBER:
+                        var_values[var] = str(value)
                     elif data_type == MatchExpression.MEX_TYPE_TIME:
                         var_values[var] = value
                     else:
@@ -221,7 +223,11 @@ class MatchExpression:
         pattern_check_front_time_start_HHMM = '^([0-9]+[:][0-9]+)[ ]*(' + var_type_names + ').*'
 
         patterns_list = None
-        if data_type in (MatchExpression.MEX_TYPE_FLOAT, MatchExpression.MEX_TYPE_INT):
+        if data_type in (
+                MatchExpression.MEX_TYPE_FLOAT,
+                MatchExpression.MEX_TYPE_INT,
+                MatchExpression.MEX_TYPE_NUMBER
+        ):
             patterns_list = (
                     pattern_check_front_float, pattern_check_front_float_start,
                     pattern_check_front_int, pattern_check_front_int_start
@@ -259,7 +265,11 @@ class MatchExpression:
         pattern_check_back_time_HHMM = '.*(' + var_type_names + ')[ ]*([0-9]+[:][0-9]+).*'
 
         patterns_list = None
-        if data_type in (MatchExpression.MEX_TYPE_FLOAT, MatchExpression.MEX_TYPE_INT):
+        if data_type in (
+                MatchExpression.MEX_TYPE_FLOAT,
+                MatchExpression.MEX_TYPE_INT,
+                MatchExpression.MEX_TYPE_NUMBER
+        ):
             patterns_list = (pattern_check_back_float, pattern_check_back_int)
         elif data_type == MatchExpression.MEX_TYPE_TIME:
             patterns_list = (pattern_check_back_time_HHMMSS, pattern_check_back_time_HHMM)
@@ -341,7 +351,7 @@ if __name__ == '__main__':
             ]
         },
         {
-            'mex': 'acc,int,尾号&账号;m,int,月;d,int,日;t,time,完成;amt,float,民币&币;bal,float,余额',
+            'mex': 'acc,number,尾号&账号;m,int,月;d,int,日;t,time,完成;amt,float,民币&币;bal,float,余额',
             'sentences': [
                 '【中国农业银行】您尾号0579账户10月17日09:27完成代付交易人民币2309.95，余额2932.80。',
                 '【中国农业银行】您尾号0579账户10月17日09:27:55完成代付交易人民币2309.95，余额2932.80。',
