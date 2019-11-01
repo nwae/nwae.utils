@@ -147,10 +147,11 @@ class MatchExpression:
                         var_values[var] = int(value)
                     elif data_type == MatchExpression.MEX_TYPE_FLOAT:
                         var_values[var] = float(value)
-                    elif data_type == MatchExpression.MEX_TYPE_NUMBER:
+                    elif data_type in (
+                            MatchExpression.MEX_TYPE_NUMBER,
+                            MatchExpression.MEX_TYPE_TIME
+                    ):
                         var_values[var] = str(value)
-                    elif data_type == MatchExpression.MEX_TYPE_TIME:
-                        var_values[var] = value
                     else:
                         raise Exception('Unrecognized type "' + str(data_type) + '".')
                 except Exception as ex_int_conv:
@@ -353,6 +354,7 @@ if __name__ == '__main__':
                 '【中国农业银行】您尾号0579账户10月17日完成09:27:55代付交易人民币2309.95，余额2932.80。',
                 '【中国农业银行】 您尾号 0579 账户 10月 17日 完成 09:27 代付交易 人民币 2309.95，余额 2932.80。',
                 '【中国农业银行】 您尾号  0579 账户 10月 17日 完成 09:27:55 代付交易 人民币 2309.95，余额 2932.80。',
+                '【中国农业银行】 您尾号  0579 账户 17日 完成 09:27:55 代付交易 人民币 2309.95',
             ]
         }
     ]
