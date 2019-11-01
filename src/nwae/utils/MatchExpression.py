@@ -281,14 +281,14 @@ class MatchExpression:
 
     def __init__(
             self,
-            encoding_str,
+            pattern,
             sentence
     ):
-        self.encoding_str = encoding_str
+        self.pattern = pattern
         self.sentence = sentence
         lg.Log.debug(
             str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
-            + ': Daehua Model Encoding "' + str(self.encoding_str)
+            + ': Pattern "' + str(self.pattern)
             + '" question "' + str(self.sentence) + '".'
         )
         #
@@ -301,10 +301,10 @@ class MatchExpression:
     def __decode_str(self):
         lg.Log.info(
             str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
-            + ': Mex Encoding string: ' + str(self.encoding_str)
+            + ': Mex pattern: ' + str(self.pattern)
         )
         self.mex_obj_vars = MatchExpression.decode_vars_object_str(
-            s = self.encoding_str
+            s = self.pattern
         )
         lg.Log.info(
             str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
@@ -360,13 +360,13 @@ if __name__ == '__main__':
     ]
 
     for test in tests:
-        encoding = test['mex']
+        pattern = test['mex']
         sentences = test['sentences']
 
         for sent in sentences:
             cmobj = MatchExpression(
-                encoding_str = encoding,
-                sentence     = sent
+                pattern  = pattern,
+                sentence = sent
             )
             params = cmobj.get_params()
             print(params)
