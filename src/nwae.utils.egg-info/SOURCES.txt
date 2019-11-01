@@ -10,6 +10,7 @@ src/nwae/utils/FileUtils.py
 src/nwae/utils/Json.py
 src/nwae/utils/LockFile.py
 src/nwae/utils/Log.py
+src/nwae/utils/MatchExpression.py
 src/nwae/utils/ObjectPersistence.py
 src/nwae/utils/Profiling.py
 src/nwae/utils/Rest.py
