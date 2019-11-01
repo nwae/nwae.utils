@@ -22,8 +22,6 @@ import re
 # <expression_x> is the word you expect to see before/after the parameter
 #
 class MatchExpression:
-    
-    DEFAULT_NUMBER_ROUNDING = 5
 
     MEX_OBJECT_VARS_TYPE = 'type'
     MEX_OBJECT_VARS_NAMES = 'names'
