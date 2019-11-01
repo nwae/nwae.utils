@@ -334,10 +334,10 @@ if __name__ == '__main__':
             ]
         },
         {
-            'mex': 'id,float,id&indo',
+            'mex': 'inc,float,inc&inch&inches',
             'sentences': [
-                'What is -2.6 indo odds?',
-                'What is +1.2 indo odds?'
+                'What is -2.6 inches?',
+                'What is +1.2 inches?'
             ]
         },
         {
