@@ -13,11 +13,13 @@ import re
 # where
 #   var_x = <var_name>,<var_type>,<expression_1>&<expression_2>&...
 #
+# <var_name> can be anything but must be unique among the variables
 # <var_type> can be
 #    - int
 #    - float
 #    - number (string instead of integer and will not remove leading 0's)
 #    - time (12:30:55, 23:59)
+# <expression_x> is the word you expect to see before/after the parameter
 #
 class MatchExpression:
     
