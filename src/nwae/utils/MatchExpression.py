@@ -25,9 +25,6 @@ class MatchExpression:
     
     DEFAULT_NUMBER_ROUNDING = 5
 
-    MEX_ENCODE_STR    = 'encode_str'
-    MEX_OBJECT_VARS   = 'vars'
-
     MEX_OBJECT_VARS_TYPE = 'type'
     MEX_OBJECT_VARS_NAMES = 'names'
 
