@@ -158,13 +158,13 @@ class MatchExpression:
 
                 part_var_id = var_desc[0]
                 part_var_type = var_desc[1]
-                part_var_names = var_desc[2]
+                part_var_expressions = var_desc[2]
 
                 var_encoding[part_var_id] = {
                     # Extract 'float' from ['m','float','mass&m']
                     MatchExpression.MEX_OBJECT_VARS_TYPE: part_var_type,
                     # Extract ['mass','m'] from 'mass&m'
-                    MatchExpression.MEX_OBJECT_VARS_EXPRESIONS: part_var_names.split(
+                    MatchExpression.MEX_OBJECT_VARS_EXPRESIONS: part_var_expressions.split(
                         sep = MatchExpression.MEX_VAR_NAMES_SEPARATOR
                     )
                 }
