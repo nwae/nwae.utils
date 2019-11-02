@@ -11,8 +11,8 @@ class StringUtils(object):
 
     @staticmethod
     def trim(str):
-        # Remove only ending newline
-        s = re.sub('[ \t\n\r]+$', '', re.sub('^[ \t]+', '', str))
+        # Remove only beginning/ending space, tab, newline, return carriage
+        s = re.sub('[ \t\n\r]+$', '', re.sub('^[ \t\n\r]+', '', str))
         return s
 
     @staticmethod
@@ -55,6 +55,11 @@ class StringUtils(object):
 if __name__ == '__main__':
     arr = [
         '  Privet Mir   ',
+        '  \n\r Privet Mir   ',
+        '  \n Privet Mir   ',
+        '  \r Privet Mir   \n\r ',
+        '  Privet Mir   \n ',
+        '  Privet Mir   \r ',
         ' \t  Privet Mir  \t  ',
         '  Privet Mir 1  \n\r',
         '\t Privet Mir 1   \n\r   Privet Mir 2 \n\rPrivet Mir3  \n\r'
