@@ -3,6 +3,7 @@
 import nwae.utils.Log as lg
 from inspect import getframeinfo, currentframe
 import re
+import nwae.utils.StringUtils as su
 
 
 #
@@ -39,14 +40,14 @@ import re
 class MatchExpression:
 
     MEX_OBJECT_VARS_TYPE = 'type'
-    MEX_OBJECT_VARS_EXPRESIONS = 'names'
+    MEX_OBJECT_VARS_EXPRESIONS = 'expressions'
 
     # Separates the different variables definition. e.g. 'm,float,mass&m;c,float,light&speed'
     MEX_VAR_DEFINITION_SEPARATOR = ';'
     # Separates the description of the same variable. e.g. 'm,float,mass&m'
     MEX_VAR_DESCRIPTION_SEPARATOR = ','
     # Separates the names of a variable. e.g. 'mass&m'
-    MEX_VAR_NAMES_SEPARATOR = '&'
+    MEX_VAR_EXPRESSIONS_SEPARATOR = '&'
 
     MEX_TYPE_FLOAT  = 'float'
     MEX_TYPE_INT    = 'int'
@@ -186,11 +187,19 @@ class MatchExpression:
         try:
             var_encoding = {}
 
+            # Use our own split function that will ignore escaped built-in separator
             # Here we split "m,float,mass&m;c,float,light&speed" into ['m,float,mass&m', 'c,float,light&speed']
-            str_encoding = s.split(MatchExpression.MEX_VAR_DEFINITION_SEPARATOR)
+            str_encoding = su.StringUtils.split(
+                string = s,
+                split_word = MatchExpression.MEX_VAR_DEFINITION_SEPARATOR
+            )
             for varset in str_encoding:
+                # Use our own split function that will ignore escaped built-in separator
                 # Here we split 'm,float,mass&m' into ['m','float','mass&m']
-                var_desc = varset.split(MatchExpression.MEX_VAR_DESCRIPTION_SEPARATOR)
+                var_desc = su.StringUtils.split(
+                    string = varset,
+                    split_word = MatchExpression.MEX_VAR_DESCRIPTION_SEPARATOR
+                )
 
                 part_var_id = var_desc[0]
                 part_var_type = var_desc[1]
@@ -200,8 +209,9 @@ class MatchExpression:
                     # Extract 'float' from ['m','float','mass&m']
                     MatchExpression.MEX_OBJECT_VARS_TYPE: part_var_type,
                     # Extract ['mass','m'] from 'mass&m'
-                    MatchExpression.MEX_OBJECT_VARS_EXPRESIONS: part_var_expressions.split(
-                        sep = MatchExpression.MEX_VAR_NAMES_SEPARATOR
+                    MatchExpression.MEX_OBJECT_VARS_EXPRESIONS: su.StringUtils.split(
+                        string = part_var_expressions,
+                        split_word = MatchExpression.MEX_VAR_EXPRESSIONS_SEPARATOR
                     )
                 }
                 lg.Log.info(
@@ -356,7 +366,7 @@ class MatchExpression:
                 warn_msg = \
                     str(MatchExpression.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
                     + ': Var Front. Expected 2 match groups for var name "' + str(var_name)\
-                    + '", string "' + str(string) + '", var type names "' + str(var_type_names)\
+                    + '", string "' + str(string) + '", var expressions "' + str(var_expressions)\
                     + '", data type "' + str(data_type) + '" but got groups ' + str(m.groups()) + '.'
                 lg.Log.warning(warn_msg)
         return None
@@ -460,9 +470,19 @@ if __name__ == '__main__':
 
     tests = [
         {
-            'mex': 'r,float,radius&r;d,float,diameter&d',
+            # We also use the words 'test&escape' and ';' (clashes with var separator
+            # but works because we escape the word using '\\;')
+            # to detect diameter.
+            'mex': 'r,float,radius&r;d,float,diameter&d&test\\&escape&\\;',
             'sentences': [
-                'What is the volume of a sphere of radius 5.88?'
+                'What is the volume of a sphere of radius 5.88?',
+                'What is the volume of a sphere of radius 5.88 and 4.9 diameter?',
+                'What is the volume of a sphere of radius 5.88 and 33.88 test&escape?',
+                'What is the volume of a sphere of radius 5.88, 33.88;?',
+                # Should not detect diameter because we say to look for 'd', not any word ending 'd'
+                # But because we have to handle languages like Chinese/Thai where there is no word
+                # separator, we allow this and the diameter will be detected
+                'What is the volume of a sphere of radius 5.88 and 33.88?',
             ]
         },
         {
@@ -485,7 +505,7 @@ if __name__ == '__main__':
                 '2020-01-01: 번호 0044 계정은 5 월 27 일 完成23:24:55 에 5501.99 원, 잔액 6666.77.',
                 '2020-01-01: 번호0055계정은4월28일11:37에1111.22원，잔액5555.77.',
                 '2020-01-01: 번호0066계정은3월29일11:37:55에2222.33원，잔액4444.77',
-                '2020-01-01: 번호0777계정은30일 完成11:38:55에3333.44원',
+                '2020-01-01: 번호0777계정은30일 完成11:38:55에3333.44원'
             ]
         }
     ]

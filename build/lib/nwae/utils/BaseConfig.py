@@ -218,6 +218,7 @@ class BaseConfig:
 
             linelist = []
             for line in linelist_file:
+                # Although trim() already removes ending newlines, explicitly removing them is no harm
                 line = su.StringUtils.trim(su.StringUtils.remove_newline(line))
                 # Ignore empty lines
                 if line == '':
