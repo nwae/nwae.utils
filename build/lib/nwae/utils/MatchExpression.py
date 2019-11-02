@@ -7,6 +7,9 @@ import re
 
 #
 # Higher Level Abstraction to re.match() to extract parameters
+# Never allow user to specify their own regex, this is the idea of this
+# abstraction or simplification - always keep it simple, support a new
+# var type if need.
 #
 # Language
 #   var_1;var_2;var_3;..
@@ -19,14 +22,10 @@ import re
 #    - float
 #    - number (string instead of integer and will not remove leading 0's)
 #    - time (12:30:55, 23:59)
+#    - email
 # <expression_x> is the word you expect to see before/after the parameter
 #
 class MatchExpression:
-    
-    DEFAULT_NUMBER_ROUNDING = 5
-
-    MEX_ENCODE_STR    = 'encode_str'
-    MEX_OBJECT_VARS   = 'vars'
 
     MEX_OBJECT_VARS_TYPE = 'type'
     MEX_OBJECT_VARS_NAMES = 'names'
@@ -44,6 +43,13 @@ class MatchExpression:
     MEX_TYPE_NUMBER = 'number'
     # e.g. 10:12:36, 12:15
     MEX_TYPE_TIME   = 'time'
+    # e.g. me@gmail.com
+    MEX_TYPE_EMAIL  = 'email'
+
+    #
+    # Regex Constants
+    #
+    REGEX_USERNAME_CHARS = 'a-zA-Z0-9_.-'
     
     #
     # Extract from string encoding 'm,float,mass&m;c,float,light&speed' into something like:
@@ -149,7 +155,8 @@ class MatchExpression:
                         var_values[var] = float(value)
                     elif data_type in (
                             MatchExpression.MEX_TYPE_NUMBER,
-                            MatchExpression.MEX_TYPE_TIME
+                            MatchExpression.MEX_TYPE_TIME,
+                            MatchExpression.MEX_TYPE_EMAIL
                     ):
                         var_values[var] = str(value)
                     else:
@@ -216,22 +223,36 @@ class MatchExpression:
         pattern_check_front_time_start_HHMMSS = '^([0-9]+[:][0-9]+[:][0-9]+)[ ]*(' + var_type_names + ').*'
         pattern_check_front_time_HHMM = '.*[^0-9]+([0-9]+[:][0-9]+)[ ]*(' + var_type_names + ').*'
         pattern_check_front_time_start_HHMM = '^([0-9]+[:][0-9]+)[ ]*(' + var_type_names + ').*'
+        # Email var type
+        pattern_check_front_email = \
+            '.*[^' + MatchExpression.REGEX_USERNAME_CHARS + ']+' \
+            +'([' + MatchExpression.REGEX_USERNAME_CHARS + ']+' \
+            + '[@][a-zA-Z0-9]+[.][a-zA-Z]+)[ ]*(' \
+            + var_type_names + ').*'
+        pattern_check_front_email_start = \
+            '^([' + MatchExpression.REGEX_USERNAME_CHARS + ']+' \
+            + '[@][a-zA-Z0-9]+[.][a-zA-Z]+)[ ]*(' \
+            + var_type_names + ').*'
 
         patterns_list = None
-        if data_type in (
+        if data_type in [
                 MatchExpression.MEX_TYPE_FLOAT,
                 MatchExpression.MEX_TYPE_INT,
                 MatchExpression.MEX_TYPE_NUMBER
-        ):
-            patterns_list = (
+        ]:
+            patterns_list = [
                     pattern_check_front_float, pattern_check_front_float_start,
                     pattern_check_front_int, pattern_check_front_int_start
-            )
+            ]
         elif data_type == MatchExpression.MEX_TYPE_TIME:
-            patterns_list = (
+            patterns_list = [
                 pattern_check_front_time_HHMMSS, pattern_check_front_time_start_HHMMSS,
                 pattern_check_front_time_HHMM, pattern_check_front_time_start_HHMM
-            )
+            ]
+        elif data_type == MatchExpression.MEX_TYPE_EMAIL:
+            patterns_list = [
+                pattern_check_front_email, pattern_check_front_email_start
+            ]
 
         m = MatchExpression.get_var_value_regex(
             # Always check float first
@@ -240,7 +261,15 @@ class MatchExpression:
             string        = string
         )
         if m:
-            return m.group(1)
+            if len(m.groups()) >= 1:
+                return m.group(1)
+            else:
+                warn_msg = \
+                    str(MatchExpression.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
+                    + ': Var Front. Expected 2 match groups for var name "' + str(var_name)\
+                    + '", string "' + str(string) + '", var type names "' + str(var_type_names)\
+                    + '", data type "' + str(data_type) + '" but got groups ' + str(m.groups()) + '.'
+                lg.Log.warning(warn_msg)
         return None
 
     @staticmethod
@@ -258,16 +287,22 @@ class MatchExpression:
         # Check HHMMSS first, if that fails then only HHMM
         pattern_check_back_time_HHMMSS = '.*(' + var_type_names + ')[ ]*([0-9]+[:][0-9]+[:][0-9]+).*'
         pattern_check_back_time_HHMM = '.*(' + var_type_names + ')[ ]*([0-9]+[:][0-9]+).*'
+        # Email var type
+        pattern_check_back_email = \
+            '.*(' + var_type_names + ')[ ]*([' + MatchExpression.REGEX_USERNAME_CHARS + ']+'\
+            + '[@][a-zA-Z0-9]+[.][a-zA-Z]+).*'
 
         patterns_list = None
-        if data_type in (
+        if data_type in [
                 MatchExpression.MEX_TYPE_FLOAT,
                 MatchExpression.MEX_TYPE_INT,
                 MatchExpression.MEX_TYPE_NUMBER
-        ):
-            patterns_list = (pattern_check_back_float, pattern_check_back_int)
+        ]:
+            patterns_list = [pattern_check_back_float, pattern_check_back_int]
         elif data_type == MatchExpression.MEX_TYPE_TIME:
-            patterns_list = (pattern_check_back_time_HHMMSS, pattern_check_back_time_HHMM)
+            patterns_list = [pattern_check_back_time_HHMMSS, pattern_check_back_time_HHMM]
+        elif data_type == MatchExpression.MEX_TYPE_EMAIL:
+            patterns_list = [pattern_check_back_email]
 
         m = MatchExpression.get_var_value_regex(
             # Always check float first
@@ -276,7 +311,15 @@ class MatchExpression:
             string        = string
         )
         if m:
-            return m.group(2)
+            if len(m.groups()) >= 2:
+                return m.group(2)
+            else:
+                warn_msg = \
+                    str(MatchExpression.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
+                    + ': Var Back. Expected 2 match groups for var name "' + str(var_name)\
+                    + '", string "' + str(string) + '", var type names "' + str(var_type_names)\
+                    + '", data type "' + str(data_type) + '" but got groups ' + str(m.groups()) + '.'
+                lg.Log.warning(warn_msg)
         return None
 
     def __init__(
@@ -339,10 +382,13 @@ if __name__ == '__main__':
             ]
         },
         {
-            'mex': 'id,float,id&indo',
+            'mex': 'email,email,;inc,float,inc&inch&inches',
             'sentences': [
-                'What is -2.6 indo odds?',
-                'What is +1.2 indo odds?'
+                'What is -2.6 inches? send to me@abc.com.',
+                'What is +1.2 inches? you@email.ua ?',
+                'u_ser-name.me@gmail.com is my email',
+                '이멜은u_ser-name.me@gmail.com',
+                'u_ser-name.me@gmail.invalid is my email'
             ]
         },
         {
