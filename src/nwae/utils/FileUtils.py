@@ -64,7 +64,7 @@ if __name__ == '__main__':
 
     lines = FileUtils.read_text_file('FileUtils.py')
     for i in range(0, len(lines), 1):
-        print(su.StringUtils.remove_newline(lines[i]))
+        print(su.StringUtils.trim(lines[i]))
 
     print(lines)
     exit(0)
