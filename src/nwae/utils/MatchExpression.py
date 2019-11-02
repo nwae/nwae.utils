@@ -28,7 +28,7 @@ import re
 class MatchExpression:
 
     MEX_OBJECT_VARS_TYPE = 'type'
-    MEX_OBJECT_VARS_NAMES = 'names'
+    MEX_OBJECT_VARS_EXPRESIONS = 'names'
 
     # Separates the different variables definition. e.g. 'm,float,mass&m;c,float,light&speed'
     MEX_VAR_DEFINITION_SEPARATOR = ';'
@@ -49,8 +49,81 @@ class MatchExpression:
     #
     # Regex Constants
     #
-    REGEX_USERNAME_CHARS = 'a-zA-Z0-9_.-'
-    
+    USERNAME_CHARS = 'a-zA-Z0-9_.-'
+
+    TERM_FRONT = 'front'
+    TERM_BACK  = 'back'
+    MAP_VARTYPE_REGEX = {
+        MEX_TYPE_FLOAT: {
+            TERM_FRONT: [
+                # In front of variable expression
+                '.*[^0-9\-]+([+\-]*[0-9]+[.][0-9]*)',
+                # In front of variable expression at the start of sentence
+                '^([+\-]*[0-9]+[.][0-9]*)'
+            ],
+            TERM_BACK: [
+                # After or at the back of variable expression
+                '([+\-]*[0-9]+[.][0-9]*).*'
+            ]
+        },
+        MEX_TYPE_INT: {
+            TERM_FRONT: [
+                # In front of variable expression
+                '.*[^0-9\-]+([+\-]*[0-9]+)',
+                # In front of variable expression at the start of sentence
+                '^([+\-]*[0-9]+)'
+            ],
+            TERM_BACK: [
+                # After or at the back of variable expression
+                '([+\-]*[0-9]+).*'
+            ]
+        },
+        MEX_TYPE_NUMBER: {
+            TERM_FRONT: [
+                # In front of variable expression
+                '.*[^0-9\-]+([+\-]*[0-9]+)',
+                # In front of variable expression at the start of sentence
+                '^([+\-]*[0-9]+)'
+            ],
+            TERM_BACK: [
+                # After or at the back of variable expression
+                '([+\-]*[0-9]+).*'
+            ]
+        },
+        MEX_TYPE_TIME: {
+            TERM_FRONT: [
+                # HHMMSS. Check this first
+                # HHMMSS. In front of variable expression
+                '.*[^0-9]+([0-9]+[:][0-9]+[:][0-9]+)',
+                # HHMMSS. In front of variable expression at the start of sentence
+                '^([0-9]+[:][0-9]+[:][0-9]+)',
+                # HHMM. Check this only after checking HHMMSS
+                # HHMM. In front of variable expression
+                '.*[^0-9]+([0-9]+[:][0-9]+)',
+                # HHMM. In front of variable expression at the start of sentence
+                '^([0-9]+[:][0-9]+)',
+            ],
+            TERM_BACK: [
+                # HHMMSS. After or at the back of variable expression
+                '([0-9]+[:][0-9]+[:][0-9]+).*',
+                # HHMM. After or at the back of variable expression
+                '([0-9]+[:][0-9]+).*'
+            ]
+        },
+        MEX_TYPE_EMAIL: {
+            TERM_FRONT: [
+                # In front of variable expression
+                '.*[^' + USERNAME_CHARS + ']+' + '([' + USERNAME_CHARS + ']+' + '[@][a-zA-Z0-9]+[.][a-zA-Z]+)',
+                # In front of variable expression at the start of sentence
+                '^([' + USERNAME_CHARS + ']+' + '[@][a-zA-Z0-9]+[.][a-zA-Z]+)'
+            ],
+            TERM_BACK: [
+                # After or at the back of variable expression
+                '([' + USERNAME_CHARS + ']+' + '[@][a-zA-Z0-9]+[.][a-zA-Z]+).*'
+            ]
+        }
+    }
+
     #
     # Extract from string encoding 'm,float,mass&m;c,float,light&speed' into something like:
     #   {
@@ -85,7 +158,7 @@ class MatchExpression:
                     # Extract 'float' from ['m','float','mass&m']
                     MatchExpression.MEX_OBJECT_VARS_TYPE: part_var_type,
                     # Extract ['mass','m'] from 'mass&m'
-                    MatchExpression.MEX_OBJECT_VARS_NAMES: part_var_names.split(
+                    MatchExpression.MEX_OBJECT_VARS_EXPRESIONS: part_var_names.split(
                         sep = MatchExpression.MEX_VAR_NAMES_SEPARATOR
                     )
                 }
@@ -122,7 +195,7 @@ class MatchExpression:
         for var in var_encoding.keys():
             var_values[var] = None
             # Get the names and join them using '|' for matching regex
-            names = '|'.join(var_encoding[var][MatchExpression.MEX_OBJECT_VARS_NAMES])
+            names = '|'.join(var_encoding[var][MatchExpression.MEX_OBJECT_VARS_EXPRESIONS])
             data_type = var_encoding[var][MatchExpression.MEX_OBJECT_VARS_TYPE]
 
             #
@@ -212,47 +285,20 @@ class MatchExpression:
             data_type
     ):
         var_type_names = var_type_names.lower()
-        # Always check float first
-        pattern_check_front_float = '.*[^0-9\-]+([+\-]*[0-9]+[.][0-9]*)[ ]*(' + var_type_names + ').*'
-        pattern_check_front_float_start = '^([+\-]*[0-9]+[.][0-9]*)[ ]*(' + var_type_names + ').*'
-        pattern_check_front_int = '.*[^0-9\-]+([+\-]*[0-9]+)[ ]*(' + var_type_names + ').*'
-        pattern_check_front_int_start = '^([+\-]*[0-9]+)[ ]*(' + var_type_names + ').*'
-        # Time pattern. e.g. 12:30:59, 23:45
-        # Check HHMMSS first, if that fails then only HHMM
-        pattern_check_front_time_HHMMSS = '.*[^0-9]+([0-9]+[:][0-9]+[:][0-9]+)[ ]*(' + var_type_names + ').*'
-        pattern_check_front_time_start_HHMMSS = '^([0-9]+[:][0-9]+[:][0-9]+)[ ]*(' + var_type_names + ').*'
-        pattern_check_front_time_HHMM = '.*[^0-9]+([0-9]+[:][0-9]+)[ ]*(' + var_type_names + ').*'
-        pattern_check_front_time_start_HHMM = '^([0-9]+[:][0-9]+)[ ]*(' + var_type_names + ').*'
-        # Email var type
-        pattern_check_front_email = \
-            '.*[^' + MatchExpression.REGEX_USERNAME_CHARS + ']+' \
-            +'([' + MatchExpression.REGEX_USERNAME_CHARS + ']+' \
-            + '[@][a-zA-Z0-9]+[.][a-zA-Z]+)[ ]*(' \
-            + var_type_names + ').*'
-        pattern_check_front_email_start = \
-            '^([' + MatchExpression.REGEX_USERNAME_CHARS + ']+' \
-            + '[@][a-zA-Z0-9]+[.][a-zA-Z]+)[ ]*(' \
-            + var_type_names + ').*'
 
-        patterns_list = None
-        if data_type in [
-                MatchExpression.MEX_TYPE_FLOAT,
-                MatchExpression.MEX_TYPE_INT,
-                MatchExpression.MEX_TYPE_NUMBER
-        ]:
-            patterns_list = [
-                    pattern_check_front_float, pattern_check_front_float_start,
-                    pattern_check_front_int, pattern_check_front_int_start
-            ]
-        elif data_type == MatchExpression.MEX_TYPE_TIME:
-            patterns_list = [
-                pattern_check_front_time_HHMMSS, pattern_check_front_time_start_HHMMSS,
-                pattern_check_front_time_HHMM, pattern_check_front_time_start_HHMM
-            ]
-        elif data_type == MatchExpression.MEX_TYPE_EMAIL:
-            patterns_list = [
-                pattern_check_front_email, pattern_check_front_email_start
-            ]
+        patterns_list = []
+        try:
+            fix_list = MatchExpression.MAP_VARTYPE_REGEX[data_type][MatchExpression.TERM_FRONT]
+            for pat_front in fix_list:
+                patterns_list.append(pat_front + '[ ]*(' + str(var_type_names) + ').*')
+        except Exception as ex:
+            errmsg = str(MatchExpression.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
+                     + ': Exception "' + str(ex)\
+                     + '" getting pattern list for front var value for var name "' + str(var_name)\
+                     + '", string "' + str(string) + '", var expressions "' + str(var_type_names)\
+                     + '", data type "' + str(data_type) + '".'
+            lg.Log.error(errmsg)
+            return None
 
         m = MatchExpression.get_var_value_regex(
             # Always check float first
@@ -260,6 +306,7 @@ class MatchExpression:
             var_name      = var_name,
             string        = string
         )
+
         if m:
             if len(m.groups()) >= 1:
                 return m.group(1)
@@ -280,29 +327,20 @@ class MatchExpression:
             data_type
     ):
         var_type_names = var_type_names.lower()
-        # Always check float first
-        pattern_check_back_float = '.*(' + var_type_names + ')[ ]*([+\-]*[0-9]+[.][0-9]*).*'
-        pattern_check_back_int = '.*(' + var_type_names + ')[ ]*([+\-]*[0-9]+).*'
-        # Time pattern. e.g. 12:30:59, 23:45
-        # Check HHMMSS first, if that fails then only HHMM
-        pattern_check_back_time_HHMMSS = '.*(' + var_type_names + ')[ ]*([0-9]+[:][0-9]+[:][0-9]+).*'
-        pattern_check_back_time_HHMM = '.*(' + var_type_names + ')[ ]*([0-9]+[:][0-9]+).*'
-        # Email var type
-        pattern_check_back_email = \
-            '.*(' + var_type_names + ')[ ]*([' + MatchExpression.REGEX_USERNAME_CHARS + ']+'\
-            + '[@][a-zA-Z0-9]+[.][a-zA-Z]+).*'
 
-        patterns_list = None
-        if data_type in [
-                MatchExpression.MEX_TYPE_FLOAT,
-                MatchExpression.MEX_TYPE_INT,
-                MatchExpression.MEX_TYPE_NUMBER
-        ]:
-            patterns_list = [pattern_check_back_float, pattern_check_back_int]
-        elif data_type == MatchExpression.MEX_TYPE_TIME:
-            patterns_list = [pattern_check_back_time_HHMMSS, pattern_check_back_time_HHMM]
-        elif data_type == MatchExpression.MEX_TYPE_EMAIL:
-            patterns_list = [pattern_check_back_email]
+        patterns_list = []
+        try:
+            fix_list = MatchExpression.MAP_VARTYPE_REGEX[data_type][MatchExpression.TERM_BACK]
+            for pat_back in fix_list:
+                patterns_list.append('.*(' + var_type_names + ')[ ]*' + pat_back)
+        except Exception as ex:
+            errmsg = str(MatchExpression.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
+                     + ': Exception "' + str(ex)\
+                     + '" getting pattern list for back var value for var name "' + str(var_name)\
+                     + '", string "' + str(string) + '", var expressions "' + str(var_type_names)\
+                     + '", data type "' + str(data_type) + '".'
+            lg.Log.error(errmsg)
+            return None
 
         m = MatchExpression.get_var_value_regex(
             # Always check float first
@@ -395,8 +433,9 @@ if __name__ == '__main__':
             'mex': 'acc,number,계정&번호;m,int,월;d,int,일;t,time,에;amt,float,원;bal,float,잔액',
             'sentences': [
                 '번호 0011 계정은 9 월 23 일 10:12 에 1305.67 원, 잔액 9999.77.',
+                '번호 0011 계정은 9 월 23 일 10:12 에 원 1305.67, 9999.77 잔액.',
                 '번호 0022 계정은 9 월 23 일 10:15:55 에 1405.78 원, 잔액 8888.77.',
-                '번호 0033 계정은 9 월 23 일 完成023:24 에 1505.89 원, 잔액 7777.77.',
+                '번호 0033 계정은 9 월 23 일 完成23:24 에 1505.89 원, 잔액 7777.77.',
                 '번호 0044 계정은 9 월 23 일 完成23:24:55 에 5501.99 원, 잔액 6666.77.',
                 '번호0055계정은9월23일11:37에1111.22원，잔액5555.77.',
                 '번호0066계정은9월24일11:37:55에2222.33원，잔액4444.77',
