@@ -53,7 +53,11 @@ class MatchExpression:
 
     TERM_FRONT = 'front'
     TERM_BACK  = 'back'
-    MAP_VARTYPE_REGEX = {
+    #
+    # Mapping of regular expressions to data type, you may pass in your custom one at constructor
+    # Put as tuple to make it non-mutable, to avoid warnings in compiler also when used as default argument value
+    #
+    MAP_VARTYPE_REGEX = ({
         MEX_TYPE_FLOAT: {
             TERM_FRONT: [
                 # In front of variable expression
@@ -122,7 +126,9 @@ class MatchExpression:
                 '([' + USERNAME_CHARS + ']+' + '[@][a-zA-Z0-9]+[.][a-zA-Z]+).*'
             ]
         }
-    }
+    },
+    None
+    )
 
     #
     # Extract from string encoding 'm,float,mass&m;c,float,light&speed' into something like:
@@ -180,7 +186,8 @@ class MatchExpression:
     @staticmethod
     def extract_variable_values(
             s,
-            var_encoding
+            var_encoding,
+            map_vartype_to_regex
     ):
         s = str(s).lower()
 
@@ -206,14 +213,16 @@ class MatchExpression:
                 var_name = var,
                 string = s,
                 var_type_names = names,
-                data_type = data_type
+                data_type = data_type,
+                map_vartype_to_regex = map_vartype_to_regex
             )
             if not value:
                 value = MatchExpression.get_var_value_back(
                     var_name = var,
                     string = s,
                     var_type_names = names,
-                    data_type = data_type
+                    data_type = data_type,
+                    map_vartype_to_regex = map_vartype_to_regex
                 )
 
             if value:
@@ -282,13 +291,14 @@ class MatchExpression:
             var_name,
             string,
             var_type_names,
-            data_type
+            data_type,
+            map_vartype_to_regex
     ):
         var_type_names = var_type_names.lower()
 
         patterns_list = []
         try:
-            fix_list = MatchExpression.MAP_VARTYPE_REGEX[data_type][MatchExpression.TERM_FRONT]
+            fix_list = map_vartype_to_regex[data_type][MatchExpression.TERM_FRONT]
             for pat_front in fix_list:
                 patterns_list.append(pat_front + '[ ]*(' + str(var_type_names) + ').*')
         except Exception as ex:
@@ -324,13 +334,14 @@ class MatchExpression:
             var_name,
             string,
             var_type_names,
-            data_type
+            data_type,
+            map_vartype_to_regex
     ):
         var_type_names = var_type_names.lower()
 
         patterns_list = []
         try:
-            fix_list = MatchExpression.MAP_VARTYPE_REGEX[data_type][MatchExpression.TERM_BACK]
+            fix_list = map_vartype_to_regex[data_type][MatchExpression.TERM_BACK]
             for pat_back in fix_list:
                 patterns_list.append('.*(' + var_type_names + ')[ ]*' + pat_back)
         except Exception as ex:
@@ -363,10 +374,12 @@ class MatchExpression:
     def __init__(
             self,
             pattern,
-            sentence
+            sentence,
+            map_vartype_to_regex = MAP_VARTYPE_REGEX[0]
     ):
         self.pattern = pattern
         self.sentence = sentence
+        self.map_vartype_to_regex = map_vartype_to_regex
         lg.Log.debug(
             str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
             + ': Pattern "' + str(self.pattern)
@@ -399,7 +412,8 @@ class MatchExpression:
         #
         var_values = MatchExpression.extract_variable_values(
             s = self.sentence,
-            var_encoding = self.mex_obj_vars
+            var_encoding = self.mex_obj_vars,
+            map_vartype_to_regex = self.map_vartype_to_regex
         )
 
         return var_values
@@ -433,13 +447,13 @@ if __name__ == '__main__':
             'mex': 'acc,number,계정&번호;m,int,월;d,int,일;t,time,에;amt,float,원;bal,float,잔액',
             'sentences': [
                 '번호 0011 계정은 9 월 23 일 10:12 에 1305.67 원, 잔액 9999.77.',
-                '번호 0011 계정은 9 월 23 일 10:12 에 원 1305.67, 9999.77 잔액.',
-                '번호 0022 계정은 9 월 23 일 10:15:55 에 1405.78 원, 잔액 8888.77.',
-                '번호 0033 계정은 9 월 23 일 完成23:24 에 1505.89 원, 잔액 7777.77.',
-                '번호 0044 계정은 9 월 23 일 完成23:24:55 에 5501.99 원, 잔액 6666.77.',
-                '번호0055계정은9월23일11:37에1111.22원，잔액5555.77.',
-                '번호0066계정은9월24일11:37:55에2222.33원，잔액4444.77',
-                '번호0777계정은25일 完成11:38:55에3333.44원',
+                '번호 0011 계정은 8 월 24 일 10:12 에 원 1305.67, 9999.77 잔액.',
+                '번호 0022 계정은 7 월 25 일 10:15:55 에 1405.78 원, 잔액 8888.77.',
+                '번호 0033 계정은 6 월 26 일 完成23:24 에 1505.89 원, 잔액 7777.77.',
+                '번호 0044 계정은 5 월 27 일 完成23:24:55 에 5501.99 원, 잔액 6666.77.',
+                '번호0055계정은4월28일11:37에1111.22원，잔액5555.77.',
+                '번호0066계정은3월29일11:37:55에2222.33원，잔액4444.77',
+                '번호0777계정은30일 完成11:38:55에3333.44원',
             ]
         }
     ]
