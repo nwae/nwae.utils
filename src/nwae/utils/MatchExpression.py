@@ -6,6 +6,9 @@ import re
 
 
 #
+# Human Level Description of extracting parameters from sentence
+# WITHOUT technical regular expression syntax.
+#
 # Higher Level Abstraction to re.match() to extract parameters
 # Never allow user to specify their own regex, this is the idea of this
 # abstraction or simplification - always keep it simple, support a new
@@ -15,6 +18,11 @@ import re
 #   var_1;var_2;var_3;..
 # where
 #   var_x = <var_name>,<var_type>,<expression_1>&<expression_2>&...
+#
+# In human level, the above says, "Please extract variable x using <var_name>
+# (e.g. email, date, and this variable is of type <var_type> (e.g. float, email,
+# time") and expect a person to type words "<expression_1>" or "<expression_2>"...
+# when presenting this parameter"
 #
 # <var_name> can be anything but must be unique among the variables
 # <var_type> can be
@@ -43,6 +51,8 @@ class MatchExpression:
     MEX_TYPE_NUMBER = 'number'
     # e.g. 10:12:36, 12:15
     MEX_TYPE_TIME   = 'time'
+
+    MEX_TYPE_DATETIME = 'datetime'
     # e.g. me@gmail.com
     MEX_TYPE_EMAIL  = 'email'
 
@@ -55,9 +65,8 @@ class MatchExpression:
     TERM_BACK  = 'back'
     #
     # Mapping of regular expressions to data type, you may pass in your custom one at constructor
-    # Put as tuple to make it non-mutable, to avoid warnings in compiler also when used as default argument value
     #
-    MAP_VARTYPE_REGEX = ({
+    MAP_VARTYPE_REGEX = {
         MEX_TYPE_FLOAT: {
             TERM_FRONT: [
                 # In front of variable expression
@@ -114,6 +123,32 @@ class MatchExpression:
                 '([0-9]+[:][0-9]+).*'
             ]
         },
+        MEX_TYPE_DATETIME: {
+            TERM_FRONT: [
+                # "yyyymmdd HHMMSS". Check this first
+                # HHMMSS. In front of variable expression
+                '.*[^0-9]+([0-9]{4}[-]*[0-1][0-9][-*][0-3][0-9][ ]+[0-9]+[:][0-9]+[:][0-9]+)',
+                # "yyyymmdd HHMMSS". In front of variable expression at the start of sentence
+                '^([0-9]{4}[-]*[0-1][0-9][-]*[0-3][0-9][ ]+[0-9]+[:][0-9]+[:][0-9]+)',
+                # "yyyymmdd HHMM". Check this only after checking "yyyymmdd HHMMSS"
+                # "yyyymmdd HHMM". In front of variable expression
+                '.*[^0-9]+([0-9]{4}[-]*[0-1][0-9][-]*[0-3][0-9][ ]+[0-9]+[:][0-9]+)',
+                # "yyyymmdd HHMM". In front of variable expression at the start of sentence
+                '^([0-9]{4}[-]*[0-1][0-9][-]*[0-3][0-9][ ]+[0-9]+[:][0-9]+)',
+                # "yyyymmdd". In front of variable expression
+                '.*[^0-9]+([0-9]{4}[-]*[0-1][0-9][-]*[0-3][0-9])',
+                # "yyyymmdd". In front of variable expression at the start of sentence
+                '^([0-9]{4}[-]*[0-1][0-9][-]*[0-3][0-9])',
+            ],
+            TERM_BACK: [
+                # "yyyymmdd HHMMSS". After or at the back of variable expression
+                '([0-9]{4}[-]*[0-1][0-9][-*][0-3][0-9][ ]+[0-9]+[:][0-9]+[:][0-9]+).*',
+                # "yyyymmdd HHMM". After or at the back of variable expression
+                '([0-9]{4}[-]*[0-1][0-9][-*][0-3][0-9][ ]+[0-9]+[:][0-9]+).*',
+                # "yyyymmdd"". After or at the back of variable expression
+                '([0-9]{4}[-]*[0-1][0-9][-*][0-3][0-9]).*',
+            ]
+        },
         MEX_TYPE_EMAIL: {
             TERM_FRONT: [
                 # In front of variable expression
@@ -126,9 +161,7 @@ class MatchExpression:
                 '([' + USERNAME_CHARS + ']+' + '[@][a-zA-Z0-9]+[.][a-zA-Z]+).*'
             ]
         }
-    },
-    None
-    )
+    }
 
     #
     # Extract from string encoding 'm,float,mass&m;c,float,light&speed' into something like:
@@ -231,18 +264,14 @@ class MatchExpression:
                     + ': For var "' + str(var) + '" found value ' + str(value)
                 )
                 try:
-                    if data_type == MatchExpression.MEX_TYPE_INT:
+                    if data_type not in map_vartype_to_regex.keys():
+                        raise Exception('Unrecognized type "' + str(data_type) + '".')
+                    elif data_type == MatchExpression.MEX_TYPE_INT:
                         var_values[var] = int(value)
                     elif data_type == MatchExpression.MEX_TYPE_FLOAT:
                         var_values[var] = float(value)
-                    elif data_type in (
-                            MatchExpression.MEX_TYPE_NUMBER,
-                            MatchExpression.MEX_TYPE_TIME,
-                            MatchExpression.MEX_TYPE_EMAIL
-                    ):
-                        var_values[var] = str(value)
                     else:
-                        raise Exception('Unrecognized type "' + str(data_type) + '".')
+                        var_values[var] = str(value)
                 except Exception as ex_int_conv:
                     errmsg = str(MatchExpression.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)\
                              + ': Failed to extract variable "' + str(var) + '" from "' + str(s)\
@@ -375,7 +404,7 @@ class MatchExpression:
             self,
             pattern,
             sentence,
-            map_vartype_to_regex = MAP_VARTYPE_REGEX[0]
+            map_vartype_to_regex = MAP_VARTYPE_REGEX
     ):
         self.pattern = pattern
         self.sentence = sentence
@@ -434,11 +463,11 @@ if __name__ == '__main__':
             ]
         },
         {
-            'mex': 'email,email,;inc,float,inc&inch&inches',
+            'mex': 'dt,datetime,;email,email,;inc,float,inc&inch&inches',
             'sentences': [
-                'What is -2.6 inches? send to me@abc.com.',
-                'What is +1.2 inches? you@email.ua ?',
-                'u_ser-name.me@gmail.com is my email',
+                'What is -2.6 inches? 20190322 05:15 send to me@abc.com.',
+                'What is +1.2 inches? 2019-03-22 05:15 you@email.ua ?',
+                '2019-03-22: u_ser-name.me@gmail.com is my email',
                 '이멜은u_ser-name.me@gmail.com',
                 'u_ser-name.me@gmail.invalid is my email'
             ]
