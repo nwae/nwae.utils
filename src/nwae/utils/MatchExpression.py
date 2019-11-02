@@ -236,7 +236,7 @@ class MatchExpression:
         for var in var_encoding.keys():
             var_values[var] = None
             # Get the names and join them using '|' for matching regex
-            names = '|'.join(var_encoding[var][MatchExpression.MEX_OBJECT_VARS_EXPRESIONS])
+            var_expressions = '|'.join(var_encoding[var][MatchExpression.MEX_OBJECT_VARS_EXPRESIONS])
             data_type = var_encoding[var][MatchExpression.MEX_OBJECT_VARS_TYPE]
 
             #
@@ -246,7 +246,7 @@ class MatchExpression:
             value = MatchExpression.get_var_value_front(
                 var_name = var,
                 string = s,
-                var_type_names = names,
+                var_expressions = var_expressions,
                 data_type = data_type,
                 map_vartype_to_regex = map_vartype_to_regex
             )
@@ -254,7 +254,7 @@ class MatchExpression:
                 value = MatchExpression.get_var_value_back(
                     var_name = var,
                     string = s,
-                    var_type_names = names,
+                    var_expressions = var_expressions,
                     data_type = data_type,
                     map_vartype_to_regex = map_vartype_to_regex
                 )
@@ -320,22 +320,22 @@ class MatchExpression:
     def get_var_value_front(
             var_name,
             string,
-            var_type_names,
+            var_expressions,
             data_type,
             map_vartype_to_regex
     ):
-        var_type_names = var_type_names.lower()
+        var_expressions = var_expressions.lower()
 
         patterns_list = []
         try:
             fix_list = map_vartype_to_regex[data_type][MatchExpression.TERM_FRONT]
             for pat_front in fix_list:
-                patterns_list.append(pat_front + '[ ]*(' + str(var_type_names) + ').*')
+                patterns_list.append(pat_front + '[ ]*(' + str(var_expressions) + ').*')
         except Exception as ex:
             errmsg = str(MatchExpression.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
                      + ': Exception "' + str(ex)\
                      + '" getting pattern list for front var value for var name "' + str(var_name)\
-                     + '", string "' + str(string) + '", var expressions "' + str(var_type_names)\
+                     + '", string "' + str(string) + '", var expressions "' + str(var_expressions)\
                      + '", data type "' + str(data_type) + '".'
             lg.Log.error(errmsg)
             return None
@@ -363,22 +363,22 @@ class MatchExpression:
     def get_var_value_back(
             var_name,
             string,
-            var_type_names,
+            var_expressions,
             data_type,
             map_vartype_to_regex
     ):
-        var_type_names = var_type_names.lower()
+        var_expressions = var_expressions.lower()
 
         patterns_list = []
         try:
             fix_list = map_vartype_to_regex[data_type][MatchExpression.TERM_BACK]
             for pat_back in fix_list:
-                patterns_list.append('.*(' + var_type_names + ')[ ]*' + pat_back)
+                patterns_list.append('.*(' + var_expressions + ')[ ]*' + pat_back)
         except Exception as ex:
             errmsg = str(MatchExpression.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
                      + ': Exception "' + str(ex)\
                      + '" getting pattern list for back var value for var name "' + str(var_name)\
-                     + '", string "' + str(string) + '", var expressions "' + str(var_type_names)\
+                     + '", string "' + str(string) + '", var expressions "' + str(var_expressions)\
                      + '", data type "' + str(data_type) + '".'
             lg.Log.error(errmsg)
             return None
