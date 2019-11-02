@@ -21,26 +21,26 @@ class StringUtils(object):
         return s
 
     @staticmethod
-    def split(str, split_word):
+    def split(string, split_word):
         escape_char = '\\'
 
-        if str is None:
+        if string is None:
             return []
         len_sw = len(split_word)
         if len_sw == 0:
-            return [str]
+            return [string]
 
         split_arr = []
         last_start_pos = 0
-        for i in range(len(str)):
+        for i in range(len(string)):
             # Do nothing if in the middle of the split word
             if i<last_start_pos:
                 continue
-            if i+len_sw<=len(str):
-                if str[i:(i+len_sw)] == split_word:
-                    if (i>0) and (str[i-1]!=escape_char):
+            if i+len_sw<=len(string):
+                if string[i:(i+len_sw)] == split_word:
+                    if (i>0) and (string[i-1]!=escape_char):
                         # Extract this word
-                        s_extract = str[last_start_pos:i]
+                        s_extract = string[last_start_pos:i]
                         # Now remove the escape character from the split out word
                         s_extract = re.sub(pattern='\\\\'+split_word, repl=split_word, string=s_extract)
                         split_arr.append(
@@ -48,8 +48,12 @@ class StringUtils(object):
                         )
                         # Move to new start position
                         last_start_pos = i + len_sw
-        if last_start_pos < len(str)-1:
-            split_arr.append(str[last_start_pos:len(str)])
+                        # print('New start position = ' + str(last_start_pos)+ ', for string "' + str(string[last_start_pos:]) + '".')
+        # Always add the last word, even though it is empty due to common expected behavior
+        final_extract = string[last_start_pos:len(string)]
+        # Now remove the escape character from the split out word
+        final_extract = re.sub(pattern='\\\\' + split_word, repl=split_word, string=final_extract)
+        split_arr.append(final_extract)
         return split_arr
 
 if __name__ == '__main__':
@@ -73,12 +77,16 @@ if __name__ == '__main__':
 
     split_word = ';'
     arr = [
+        # Split word = '', so should return the whole string back
+        ('first; sec\\;ond ;\\;third;fourth', ''),
+        # Should not split 'sec;ond' into 'sec' & 'ond'
         ('first; sec\\;ond ;\\;third;fourth', ';'),
         ('first; sec\\;ond ;\\;third;fourth;', ';'),
         ('first NEXT WORD sec\\NEXT WORD ond NEXT WORD\\;thirdNEXT WORDfourth', 'NEXT WORD'),
         ('firstNEXT WORD sec\\NEXT WORDond NEXT WORD\\NEXT WORDthird NEXT WORD fourthNEXT WORD', 'NEXT WORD'),
+        ('diameter&d&test\\&escape', '&')
     ]
     for s in arr:
         # print('Before split: ' + str(s))
-        print('After split:  ' + str(StringUtils.split(str=s[0], split_word=s[1])))
+        print('After split:  ' + str(StringUtils.split(string=s[0], split_word=s[1])))
 
