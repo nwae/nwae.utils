@@ -39,7 +39,7 @@ import re
 class MatchExpression:
 
     MEX_OBJECT_VARS_TYPE = 'type'
-    MEX_OBJECT_VARS_EXPRESIONS = 'names'
+    MEX_OBJECT_VARS_EXPRESIONS = 'expressions'
 
     # Separates the different variables definition. e.g. 'm,float,mass&m;c,float,light&speed'
     MEX_VAR_DEFINITION_SEPARATOR = ';'
