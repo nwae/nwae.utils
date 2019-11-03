@@ -14,12 +14,12 @@ for keyvalue in "$@"; do
     read -ra KV <<< "$keyvalue" # str is read into an array as tokens separated by IFS
 
     if [ "$KV" == "version" ] ; then
-        NWAE_VERSION=${KV[1]}
+        PIP_VERSION=${KV[1]}
         echo "[$SCRIPT_NAME] Set version to $PIP_VERSION."
     fi
 done
 
-if [ "$NWAE_VERSION" = "" ]; then
+if [ "$PIP_VERSION" = "" ]; then
   echo "[$SCRIPT_NAME] Must specify version!"
   exit 1
 fi
