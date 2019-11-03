@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='nwae.utils',
-    version='1.3.5',
+    version='1.3.6',
     packages=[
         'nwae.utils'
     ],
