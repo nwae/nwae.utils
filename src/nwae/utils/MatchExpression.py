@@ -67,50 +67,50 @@ class MatchExpression:
     # These characters need to be bracketed if found in mex expressions
     COMMON_REGEX_CHARS = ('*', '+', '[', ']', '{', '}', '|')
 
-    TERM_FRONT = 'front'
-    TERM_BACK  = 'back'
+    TERM_LEFT = 'front'
+    TERM_RIGHT  = 'back'
     #
     # Mapping of regular expressions to data type, you may pass in your custom one at constructor
     #
     MAP_VARTYPE_REGEX = {
         MEX_TYPE_FLOAT: {
-            TERM_FRONT: [
+            TERM_LEFT: [
                 # In front of variable expression
                 '.*[^0-9\-]+([+\-]*[0-9]+[.][0-9]*)',
                 # In front of variable expression at the start of sentence
                 '^([+\-]*[0-9]+[.][0-9]*)'
             ],
-            TERM_BACK: [
+            TERM_RIGHT: [
                 # After or at the back of variable expression
                 '([+\-]*[0-9]+[.][0-9]*).*'
             ]
         },
         MEX_TYPE_INT: {
-            TERM_FRONT: [
+            TERM_LEFT: [
                 # In front of variable expression
                 '.*[^0-9\-]+([+\-]*[0-9]+)',
                 # In front of variable expression at the start of sentence
                 '^([+\-]*[0-9]+)'
             ],
-            TERM_BACK: [
+            TERM_RIGHT: [
                 # After or at the back of variable expression
                 '([+\-]*[0-9]+).*'
             ]
         },
         MEX_TYPE_NUMBER: {
-            TERM_FRONT: [
+            TERM_LEFT: [
                 # In front of variable expression
                 '.*[^0-9\-]+([+\-]*[0-9]+)',
                 # In front of variable expression at the start of sentence
                 '^([+\-]*[0-9]+)'
             ],
-            TERM_BACK: [
+            TERM_RIGHT: [
                 # After or at the back of variable expression
                 '([+\-]*[0-9]+).*'
             ]
         },
         MEX_TYPE_TIME: {
-            TERM_FRONT: [
+            TERM_LEFT: [
                 # HHMMSS. Check this first
                 # HHMMSS. In front of variable expression
                 '.*[^0-9]+([0-9]+[:][0-9]+[:][0-9]+)',
@@ -122,7 +122,7 @@ class MatchExpression:
                 # HHMM. In front of variable expression at the start of sentence
                 '^([0-9]+[:][0-9]+)',
             ],
-            TERM_BACK: [
+            TERM_RIGHT: [
                 # HHMMSS. After or at the back of variable expression
                 '([0-9]+[:][0-9]+[:][0-9]+).*',
                 # HHMM. After or at the back of variable expression
@@ -130,7 +130,7 @@ class MatchExpression:
             ]
         },
         MEX_TYPE_DATETIME: {
-            TERM_FRONT: [
+            TERM_LEFT: [
                 # "yyyymmdd HHMMSS". Check this first
                 # HHMMSS. In front of variable expression
                 '.*[^0-9]+([0-9]{4}[-]*[0-1][0-9][-*][0-3][0-9][ ]+[0-9]+[:][0-9]+[:][0-9]+)',
@@ -146,7 +146,7 @@ class MatchExpression:
                 # "yyyymmdd". In front of variable expression at the start of sentence
                 '^([0-9]{4}[-]*[0-1][0-9][-]*[0-3][0-9])',
             ],
-            TERM_BACK: [
+            TERM_RIGHT: [
                 # "yyyymmdd HHMMSS". After or at the back of variable expression
                 '([0-9]{4}[-]*[0-1][0-9][-*][0-3][0-9][ ]+[0-9]+[:][0-9]+[:][0-9]+).*',
                 # "yyyymmdd HHMM". After or at the back of variable expression
@@ -156,14 +156,18 @@ class MatchExpression:
             ]
         },
         MEX_TYPE_EMAIL: {
-            TERM_FRONT: [
+            TERM_LEFT: [
                 # In front of variable expression
                 '.*[^' + USERNAME_CHARS + ']+' + '([' + USERNAME_CHARS + ']+' + '[@][a-zA-Z0-9]+[.][a-zA-Z]+)',
                 # In front of variable expression at the start of sentence
                 '^([' + USERNAME_CHARS + ']+' + '[@][a-zA-Z0-9]+[.][a-zA-Z]+)'
             ],
-            TERM_BACK: [
+            TERM_RIGHT: [
                 # After or at the back of variable expression
+                # Note that if given math expressions are nothing or '', then
+                # 'email@x.com' will be returned correctly on the left side but
+                # the right side will return 'l@x.com'.
+                # The user needs to choose the right one
                 '([' + USERNAME_CHARS + ']+' + '[@][a-zA-Z0-9]+[.][a-zA-Z]+).*'
             ]
         }
@@ -295,7 +299,8 @@ class MatchExpression:
 
         # Look one by one
         for var in self.mex_obj_vars.keys():
-            var_values[var] = None
+            # Left and right values
+            var_values[var] = (None, None)
             # Get the names and join them using '|' for matching regex
             var_expressions = '|'.join(self.mex_obj_vars[var][MatchExpression.MEX_OBJECT_VARS_EXPRESIONS])
             data_type = self.mex_obj_vars[var][MatchExpression.MEX_OBJECT_VARS_TYPE]
@@ -304,34 +309,45 @@ class MatchExpression:
             # Default to search the front value first
             # TODO Make this more intelligent
             #
-            value = self.get_var_value(
+            value_left = self.get_var_value(
                 var_name        = var,
                 var_expressions = var_expressions,
                 data_type       = data_type,
-                front_or_back   = MatchExpression.TERM_FRONT
+                left_or_right   = MatchExpression.TERM_LEFT
             )
-            if not value:
-                value = self.get_var_value(
-                    var_name        = var,
-                    var_expressions = var_expressions,
-                    data_type       = data_type,
-                    front_or_back   = MatchExpression.TERM_BACK
-                )
+            value_right = self.get_var_value(
+                var_name        = var,
+                var_expressions = var_expressions,
+                data_type       = data_type,
+                left_or_right   = MatchExpression.TERM_RIGHT
+            )
 
-            if value:
+            if value_left or value_right:
                 lg.Log.debug(
                     str(MatchExpression.__name__) + ' ' + str(getframeinfo(currentframe()).lineno) \
-                    + ': For var "' + str(var) + '" found value ' + str(value)
+                    + ': For var "' + str(var) + '" found values ' + str([value_left, value_right])
                 )
                 try:
                     if data_type not in self.map_vartype_to_regex.keys():
                         raise Exception('Unrecognized type "' + str(data_type) + '".')
                     elif data_type == MatchExpression.MEX_TYPE_INT:
-                        var_values[var] = int(value)
+                        if value_left:
+                            value_left = int(value_left)
+                        if value_right:
+                            value_right = int(value_right)
+                        var_values[var] = (value_left, value_right)
                     elif data_type == MatchExpression.MEX_TYPE_FLOAT:
-                        var_values[var] = float(value)
+                        if value_left:
+                            value_left = float(value_left)
+                        if value_right:
+                            value_right = float(value_right)
+                        var_values[var] = (value_left, value_right)
                     else:
-                        var_values[var] = str(value)
+                        if value_left:
+                            value_left = str(value_left)
+                        if value_right:
+                            value_right = str(value_right)
+                        var_values[var] = (value_left, value_right)
                 except Exception as ex_int_conv:
                     errmsg = str(MatchExpression.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)\
                              + ': Failed to extract variable "' + str(var)\
@@ -379,16 +395,16 @@ class MatchExpression:
             self,
             data_type,
             var_expressions,
-            front_or_back
+            left_or_right
     ):
         if not self.case_sensitive:
             var_expressions = var_expressions.lower()
 
         patterns_list = []
         try:
-            fix_list = self.map_vartype_to_regex[data_type][front_or_back]
+            fix_list = self.map_vartype_to_regex[data_type][left_or_right]
             for pat in fix_list:
-                if front_or_back == MatchExpression.TERM_FRONT:
+                if left_or_right == MatchExpression.TERM_LEFT:
                     patterns_list.append(
                         pat + '[ ]*(' + str(var_expressions) + ').*'
                     )
@@ -400,7 +416,7 @@ class MatchExpression:
         except Exception as ex:
             errmsg = str(MatchExpression.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
                      + ': Exception "' + str(ex)\
-                     + '" getting ' + str(front_or_back) + ' pattern list for var expressions "'\
+                     + '" getting ' + str(left_or_right) + ' pattern list for var expressions "'\
                      + str(var_expressions) + '", data type "' + str(data_type) + '".'
             lg.Log.error(errmsg)
             raise Exception(errmsg)
@@ -410,7 +426,7 @@ class MatchExpression:
             var_name,
             var_expressions,
             data_type,
-            front_or_back
+            left_or_right
     ):
         var_expressions = var_expressions.lower()
 
@@ -418,12 +434,12 @@ class MatchExpression:
             patterns_list = self.get_pattern_list(
                 data_type = data_type,
                 var_expressions = var_expressions,
-                front_or_back   = front_or_back
+                left_or_right   = left_or_right
             )
         except Exception as ex:
             errmsg = str(MatchExpression.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
                      + ': Exception "' + str(ex)\
-                     + '" getting ' + str(front_or_back) + ' pattern list for var name "' + str(var_name)\
+                     + '" getting ' + str(left_or_right) + ' pattern list for var name "' + str(var_name)\
                      + '", sentence "' + str(self.sentence) + '", var expressions "' + str(var_expressions)\
                      + '", data type "' + str(data_type) + '".'
             lg.Log.error(errmsg)
@@ -436,7 +452,7 @@ class MatchExpression:
         )
 
         group_position = 1
-        if front_or_back == MatchExpression.TERM_BACK:
+        if left_or_right == MatchExpression.TERM_RIGHT:
             group_position = 2
 
         if m:
@@ -445,18 +461,37 @@ class MatchExpression:
             else:
                 warn_msg = \
                     str(MatchExpression.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
-                    + ': For ' + str(front_or_back) + ' match, expected at least ' + str(group_position)\
+                    + ': For ' + str(left_or_right) + ' match, expected at least ' + str(group_position)\
                     + ' match groups for var name "' + str(var_name)\
                     + '", string "' + str(self.sentence) + '", var expressions "' + str(var_expressions)\
                     + '", data type "' + str(data_type) + '" but got groups ' + str(m.groups()) + '.'
                 lg.Log.warning(warn_msg)
         return None
 
-    def get_params(self):
+    def get_params(
+            self,
+            return_one_value = True,
+            return_value_priority = TERM_LEFT
+    ):
         #
         # Extract variables from question
         #
-        return self.extract_variable_values()
+        params_dict = self.extract_variable_values()
+
+        if return_one_value:
+            for key in params_dict.keys():
+                values = params_dict[key]
+                index_priority_order = (0,1)
+                if return_value_priority == MatchExpression.TERM_RIGHT:
+                    index_priority_order = (1,0)
+                if values[index_priority_order[0]] is not None:
+                    params_dict[key] = values[index_priority_order[0]]
+                elif values[index_priority_order[1]] is not None:
+                    params_dict[key] = values[index_priority_order[1]]
+                else:
+                    params_dict[key] = None
+
+        return params_dict
 
     
 if __name__ == '__main__':
@@ -529,5 +564,14 @@ if __name__ == '__main__':
                 pattern  = pattern,
                 sentence = sent
             )
-            params = cmobj.get_params()
-            print(params)
+            params_all = cmobj.get_params(
+                return_one_value = False,
+                return_value_priority = MatchExpression.TERM_LEFT
+            )
+            #print(params_all)
+
+            params_one = cmobj.get_params(
+                return_one_value = True,
+                return_value_priority = MatchExpression.TERM_LEFT
+            )
+            print(params_one)
