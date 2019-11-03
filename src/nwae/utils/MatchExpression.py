@@ -64,6 +64,8 @@ class MatchExpression:
     # Regex Constants
     #
     USERNAME_CHARS = 'a-zA-Z0-9_.-'
+    # These characters need to be bracketed if found in mex expressions
+    COMMON_REGEX_CHARS = ('*', '+', '[', ']', '{', '}', '|')
 
     TERM_FRONT = 'front'
     TERM_BACK  = 'back'
@@ -167,6 +169,34 @@ class MatchExpression:
         }
     }
 
+    def __init__(
+            self,
+            pattern,
+            sentence,
+            map_vartype_to_regex = MAP_VARTYPE_REGEX,
+            case_sensitive = False
+    ):
+        self.pattern = pattern
+        self.sentence = sentence
+        self.case_sensitive = case_sensitive
+        if not self.case_sensitive:
+            self.sentence = str(self.sentence).lower()
+        self.map_vartype_to_regex = map_vartype_to_regex
+        lg.Log.debug(
+            str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
+            + ': Pattern "' + str(self.pattern)
+            + '" sentence "' + str(self.sentence) + '".'
+        )
+        #
+        # Decode the model variables
+        #
+        self.mex_obj_vars = self.decode_match_expression_pattern()
+        lg.Log.info(
+            str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
+            + ': Model Object vars: ' + str(self.mex_obj_vars)
+        )
+        return
+
     #
     # Extract from string encoding 'm,float,mass&m;c,float,light&speed' into something like:
     #   {
@@ -180,9 +210,8 @@ class MatchExpression:
     #      }
     #   }
     #
-    @staticmethod
-    def decode_vars_object_str(
-            s
+    def decode_match_expression_pattern(
+            self
     ):
         try:
             var_encoding = {}
@@ -190,29 +219,53 @@ class MatchExpression:
             # Use our own split function that will ignore escaped built-in separator
             # Here we split "m,float,mass&m;c,float,light&speed" into ['m,float,mass&m', 'c,float,light&speed']
             str_encoding = su.StringUtils.split(
-                string = s,
+                string = self.pattern,
                 split_word = MatchExpression.MEX_VAR_DEFINITION_SEPARATOR
             )
-            for varset in str_encoding:
+            for unit_mex_pattern in str_encoding:
+                unit_mex_pattern = su.StringUtils.trim(unit_mex_pattern)
+                if unit_mex_pattern == '':
+                    continue
                 # Use our own split function that will ignore escaped built-in separator
                 # Here we split 'm,float,mass&m' into ['m','float','mass&m']
                 var_desc = su.StringUtils.split(
-                    string = varset,
+                    string = unit_mex_pattern,
                     split_word = MatchExpression.MEX_VAR_DESCRIPTION_SEPARATOR
                 )
 
-                part_var_id = var_desc[0]
-                part_var_type = var_desc[1]
-                part_var_expressions = var_desc[2]
+                if len(var_desc) < 3:
+                    raise Exception(
+                        'Mex pattern must have at least 3 parts, got only ' + str(len(unit_mex_pattern))
+                        + ' for unit mex pattern "' + str(unit_mex_pattern)
+                        + '" from mex pattern "' + str(self.pattern)
+                    )
+
+                part_var_id = su.StringUtils.trim(var_desc[0])
+                part_var_type = su.StringUtils.trim(var_desc[1])
+                part_var_expressions = su.StringUtils.trim(var_desc[2])
+
+                expressions_arr = su.StringUtils.split(
+                        string = part_var_expressions,
+                        split_word = MatchExpression.MEX_VAR_EXPRESSIONS_SEPARATOR
+                    )
+                corrected_expressions_arr = []
+                # Bracket characters that are common regex key characters,
+                # as they are inserted into regex later on
+                for expression in expressions_arr:
+                    expression = su.StringUtils.trim(expression)
+                    corrected_expression = ''
+                    for i in range(len(expression)):
+                        if expression[i] in MatchExpression.COMMON_REGEX_CHARS:
+                            corrected_expression = corrected_expression + '[' + expression[i] + ']'
+                        else:
+                            corrected_expression = corrected_expression + expression[i]
+                    corrected_expressions_arr.append(corrected_expression)
 
                 var_encoding[part_var_id] = {
                     # Extract 'float' from ['m','float','mass&m']
                     MatchExpression.MEX_OBJECT_VARS_TYPE: part_var_type,
                     # Extract ['mass','m'] from 'mass&m'
-                    MatchExpression.MEX_OBJECT_VARS_EXPRESIONS: su.StringUtils.split(
-                        string = part_var_expressions,
-                        split_word = MatchExpression.MEX_VAR_EXPRESSIONS_SEPARATOR
-                    )
+                    MatchExpression.MEX_OBJECT_VARS_EXPRESIONS: corrected_expressions_arr
                 }
                 lg.Log.info(
                     str(MatchExpression.__name__) + ' ' + str(getframeinfo(currentframe()).lineno) \
@@ -222,53 +275,47 @@ class MatchExpression:
             return var_encoding
         except Exception as ex:
             errmsg = str(MatchExpression.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)\
-                     + ': Failed to get var encoding for "' + str(s) + '". Exception ' + str(ex) + '.'
+                     + ': Failed to get var encoding for mex pattern "'\
+                     + str(self.pattern) + '". Exception ' + str(ex) + '.'
             lg.Log.error(errmsg)
-            return None
+            raise Exception(errmsg)
 
     #
     # Extract variables from string
     #
-    @staticmethod
     def extract_variable_values(
-            s,
-            var_encoding,
-            map_vartype_to_regex
+            self
     ):
-        s = str(s).lower()
-
         lg.Log.debug(
             str(MatchExpression.__name__) + ' ' + str(getframeinfo(currentframe()).lineno) \
-            + ': Extracting vars from "' + str(s) + '", using encoding ' + str(var_encoding)
+            + ': Extracting vars from "' + str(self.sentence) + '", using mex encoding ' + str(self.mex_obj_vars)
         )
 
         var_values = {}
 
         # Look one by one
-        for var in var_encoding.keys():
+        for var in self.mex_obj_vars.keys():
             var_values[var] = None
             # Get the names and join them using '|' for matching regex
-            var_expressions = '|'.join(var_encoding[var][MatchExpression.MEX_OBJECT_VARS_EXPRESIONS])
-            data_type = var_encoding[var][MatchExpression.MEX_OBJECT_VARS_TYPE]
+            var_expressions = '|'.join(self.mex_obj_vars[var][MatchExpression.MEX_OBJECT_VARS_EXPRESIONS])
+            data_type = self.mex_obj_vars[var][MatchExpression.MEX_OBJECT_VARS_TYPE]
 
             #
             # Default to search the front value first
             # TODO Make this more intelligent
             #
-            value = MatchExpression.get_var_value_front(
-                var_name = var,
-                string = s,
+            value = self.get_var_value(
+                var_name        = var,
                 var_expressions = var_expressions,
-                data_type = data_type,
-                map_vartype_to_regex = map_vartype_to_regex
+                data_type       = data_type,
+                front_or_back   = MatchExpression.TERM_FRONT
             )
             if not value:
-                value = MatchExpression.get_var_value_back(
-                    var_name = var,
-                    string = s,
+                value = self.get_var_value(
+                    var_name        = var,
                     var_expressions = var_expressions,
-                    data_type = data_type,
-                    map_vartype_to_regex = map_vartype_to_regex
+                    data_type       = data_type,
+                    front_or_back   = MatchExpression.TERM_BACK
                 )
 
             if value:
@@ -277,7 +324,7 @@ class MatchExpression:
                     + ': For var "' + str(var) + '" found value ' + str(value)
                 )
                 try:
-                    if data_type not in map_vartype_to_regex.keys():
+                    if data_type not in self.map_vartype_to_regex.keys():
                         raise Exception('Unrecognized type "' + str(data_type) + '".')
                     elif data_type == MatchExpression.MEX_TYPE_INT:
                         var_values[var] = int(value)
@@ -287,22 +334,22 @@ class MatchExpression:
                         var_values[var] = str(value)
                 except Exception as ex_int_conv:
                     errmsg = str(MatchExpression.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)\
-                             + ': Failed to extract variable "' + str(var) + '" from "' + str(s)\
+                             + ': Failed to extract variable "' + str(var)\
+                             + '" from sentence "' + str(self.sentence)\
                              + '". Exception ' + str(ex_int_conv) + '.'
                     lg.Log.warning(errmsg)
 
         lg.Log.debug(
             str(MatchExpression.__name__) + ' ' + str(getframeinfo(currentframe()).lineno) \
-            + ': For s "' + str(s) + '" var values ' + str(var_values)
+            + ': For sentence "' + str(self.sentence) + '" var values ' + str(var_values)
         )
 
         return var_values
 
-    @staticmethod
     def get_var_value_regex(
+            self,
             patterns_list,
-            var_name,
-            string
+            var_name
     ):
         lg.Log.debug(
             str(MatchExpression.__name__) + ' ' + str(getframeinfo(currentframe()).lineno) \
@@ -312,13 +359,13 @@ class MatchExpression:
         if patterns_list is None:
             lg.Log.error(
                 str(MatchExpression.__name__) + ' ' + str(getframeinfo(currentframe()).lineno) \
-                + ': No patterns list provided for string "' + str(string)
+                + ': No patterns list provided for string "' + str(self.sentence)
                 + '", var name "' + str(var_name) + '".'
             )
             return None
 
         for pattern in patterns_list:
-            m = re.match(pattern=pattern, string=string)
+            m = re.match(pattern=pattern, string=self.sentence)
             if m:
                 lg.Log.debug(
                     str(MatchExpression.__name__) + ' ' + str(getframeinfo(currentframe()).lineno) \
@@ -328,137 +375,88 @@ class MatchExpression:
                 return m
         return None
 
-    @staticmethod
-    def get_var_value_front(
-            var_name,
-            string,
-            var_expressions,
-            data_type,
-            map_vartype_to_regex
-    ):
-        var_expressions = var_expressions.lower()
-
-        patterns_list = []
-        try:
-            fix_list = map_vartype_to_regex[data_type][MatchExpression.TERM_FRONT]
-            for pat_front in fix_list:
-                patterns_list.append(pat_front + '[ ]*(' + str(var_expressions) + ').*')
-        except Exception as ex:
-            errmsg = str(MatchExpression.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
-                     + ': Exception "' + str(ex)\
-                     + '" getting pattern list for front var value for var name "' + str(var_name)\
-                     + '", string "' + str(string) + '", var expressions "' + str(var_expressions)\
-                     + '", data type "' + str(data_type) + '".'
-            lg.Log.error(errmsg)
-            return None
-
-        m = MatchExpression.get_var_value_regex(
-            # Always check float first
-            patterns_list = patterns_list,
-            var_name      = var_name,
-            string        = string
-        )
-
-        if m:
-            if len(m.groups()) >= 1:
-                return m.group(1)
-            else:
-                warn_msg = \
-                    str(MatchExpression.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
-                    + ': Var Front. Expected 2 match groups for var name "' + str(var_name)\
-                    + '", string "' + str(string) + '", var expressions "' + str(var_expressions)\
-                    + '", data type "' + str(data_type) + '" but got groups ' + str(m.groups()) + '.'
-                lg.Log.warning(warn_msg)
-        return None
-
-    @staticmethod
-    def get_var_value_back(
-            var_name,
-            string,
-            var_expressions,
-            data_type,
-            map_vartype_to_regex
-    ):
-        var_expressions = var_expressions.lower()
-
-        patterns_list = []
-        try:
-            fix_list = map_vartype_to_regex[data_type][MatchExpression.TERM_BACK]
-            for pat_back in fix_list:
-                patterns_list.append('.*(' + var_expressions + ')[ ]*' + pat_back)
-        except Exception as ex:
-            errmsg = str(MatchExpression.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
-                     + ': Exception "' + str(ex)\
-                     + '" getting pattern list for back var value for var name "' + str(var_name)\
-                     + '", string "' + str(string) + '", var expressions "' + str(var_expressions)\
-                     + '", data type "' + str(data_type) + '".'
-            lg.Log.error(errmsg)
-            return None
-
-        m = MatchExpression.get_var_value_regex(
-            # Always check float first
-            patterns_list = patterns_list,
-            var_name      = var_name,
-            string        = string
-        )
-        if m:
-            if len(m.groups()) >= 2:
-                return m.group(2)
-            else:
-                warn_msg = \
-                    str(MatchExpression.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
-                    + ': Var Back. Expected 2 match groups for var name "' + str(var_name)\
-                    + '", string "' + str(string) + '", var type names "' + str(var_type_names)\
-                    + '", data type "' + str(data_type) + '" but got groups ' + str(m.groups()) + '.'
-                lg.Log.warning(warn_msg)
-        return None
-
-    def __init__(
+    def get_pattern_list(
             self,
-            pattern,
-            sentence,
-            map_vartype_to_regex = MAP_VARTYPE_REGEX
+            data_type,
+            var_expressions,
+            front_or_back
     ):
-        self.pattern = pattern
-        self.sentence = sentence
-        self.map_vartype_to_regex = map_vartype_to_regex
-        lg.Log.debug(
-            str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
-            + ': Pattern "' + str(self.pattern)
-            + '" question "' + str(self.sentence) + '".'
-        )
-        #
-        # Decode the model variables
-        #
-        self.mex_obj_vars = None
-        self.__decode_str()
-        return
+        if not self.case_sensitive:
+            var_expressions = var_expressions.lower()
 
-    def __decode_str(self):
-        lg.Log.info(
-            str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
-            + ': Mex pattern: ' + str(self.pattern)
+        patterns_list = []
+        try:
+            fix_list = self.map_vartype_to_regex[data_type][front_or_back]
+            for pat in fix_list:
+                if front_or_back == MatchExpression.TERM_FRONT:
+                    patterns_list.append(
+                        pat + '[ ]*(' + str(var_expressions) + ').*'
+                    )
+                else:
+                    patterns_list.append(
+                        '.*(' + var_expressions + ')[ ]*' + pat
+                    )
+            return patterns_list
+        except Exception as ex:
+            errmsg = str(MatchExpression.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
+                     + ': Exception "' + str(ex)\
+                     + '" getting ' + str(front_or_back) + ' pattern list for var expressions "'\
+                     + str(var_expressions) + '", data type "' + str(data_type) + '".'
+            lg.Log.error(errmsg)
+            raise Exception(errmsg)
+
+    def get_var_value(
+            self,
+            var_name,
+            var_expressions,
+            data_type,
+            front_or_back
+    ):
+        var_expressions = var_expressions.lower()
+
+        try:
+            patterns_list = self.get_pattern_list(
+                data_type = data_type,
+                var_expressions = var_expressions,
+                front_or_back   = front_or_back
+            )
+        except Exception as ex:
+            errmsg = str(MatchExpression.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
+                     + ': Exception "' + str(ex)\
+                     + '" getting ' + str(front_or_back) + ' pattern list for var name "' + str(var_name)\
+                     + '", sentence "' + str(self.sentence) + '", var expressions "' + str(var_expressions)\
+                     + '", data type "' + str(data_type) + '".'
+            lg.Log.error(errmsg)
+            return None
+
+        m = self.get_var_value_regex(
+            # Always check float first
+            patterns_list = patterns_list,
+            var_name      = var_name
         )
-        self.mex_obj_vars = MatchExpression.decode_vars_object_str(
-            s = self.pattern
-        )
-        lg.Log.info(
-            str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
-            + ': Model Object vars: ' + str(self.mex_obj_vars)
-        )
-        return
+
+        group_position = 1
+        if front_or_back == MatchExpression.TERM_BACK:
+            group_position = 2
+
+        if m:
+            if len(m.groups()) >= group_position:
+                return m.group(group_position)
+            else:
+                warn_msg = \
+                    str(MatchExpression.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
+                    + ': For ' + str(front_or_back) + ' match, expected at least ' + str(group_position)\
+                    + ' match groups for var name "' + str(var_name)\
+                    + '", string "' + str(self.sentence) + '", var expressions "' + str(var_expressions)\
+                    + '", data type "' + str(data_type) + '" but got groups ' + str(m.groups()) + '.'
+                lg.Log.warning(warn_msg)
+        return None
 
     def get_params(self):
         #
         # Extract variables from question
         #
-        var_values = MatchExpression.extract_variable_values(
-            s = self.sentence,
-            var_encoding = self.mex_obj_vars,
-            map_vartype_to_regex = self.map_vartype_to_regex
-        )
-
-        return var_values
+        return self.extract_variable_values()
 
     
 if __name__ == '__main__':
@@ -473,20 +471,30 @@ if __name__ == '__main__':
             # We also use the words 'test&escape' and ';' (clashes with var separator
             # but works because we escape the word using '\\;')
             # to detect diameter.
-            'mex': 'r,float,radius&r;d,float,diameter&d&test\\&escape&\\;',
+            # Need to escape special mex characters like ; if used as expression
+            'mex': 'r, float, radius & r  ;'
+                   + 'd, float, diameter & d & test\\&escape & \\; & + & * &\\&   ;   ',
             'sentences': [
                 'What is the volume of a sphere of radius 5.88?',
                 'What is the volume of a sphere of radius 5.88 and 4.9 diameter?',
                 'What is the volume of a sphere of radius 5.88 and 33.88 test&escape?',
                 'What is the volume of a sphere of radius 5.88, 33.88;?',
+                # When stupid user uses '+' to detect a param, should also work, but not recommended
+                'What is the volume of a sphere of radius 5.88, +33.88?',
+                # Using '*' to detect diameter
+                'What is the volume of a sphere of radius 5.88, 33.88*?',
+                # Using '&' to detect diameter
+                'What is the volume of a sphere of radius 5.88, 33.88&?',
                 # Should not detect diameter because we say to look for 'd', not any word ending 'd'
                 # But because we have to handle languages like Chinese/Thai where there is no word
                 # separator, we allow this and the diameter will be detected
                 'What is the volume of a sphere of radius 5.88 and 33.88?',
+                # Should not be able to detect now diameter
+                'What is the volume of a sphere of radius 5.88 & 33.88?'
             ]
         },
         {
-            'mex': 'dt,datetime,;email,email,;inc,float,inc&inch&inches',
+            'mex': 'dt,datetime,   ;   email,email,   ;   inc, float, inc & inch & inches',
             'sentences': [
                 'What is -2.6 inches? 20190322 05:15 send to me@abc.com.',
                 'What is +1.2 inches? 2019-03-22 05:15 you@email.ua ?',
@@ -496,7 +504,9 @@ if __name__ == '__main__':
             ]
         },
         {
-            'mex': 'dt,datetime,;acc,number,계정&번호;m,int,월;d,int,일;t,time,에;amt,float,원;bal,float,잔액',
+            'mex': 'dt, datetime,   ;   acc, number, 계정 & 번호   ;   '
+                   + 'm, int, 월   ;   d, int, 일   ;   t, time, 에   ;'
+                   + 'amt, float, 원   ;   bal, float, 잔액   ',
             'sentences': [
                 '2020-01-01: 번호 0011 계정은 9 월 23 일 10:12 에 1305.67 원, 잔액 9999.77.',
                 '20200101 xxx: 번호 0011 계정은 8 월 24 일 10:12 에 원 1305.67, 9999.77 잔액.',
