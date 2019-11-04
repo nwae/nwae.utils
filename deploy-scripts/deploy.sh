@@ -8,6 +8,8 @@ SCRIPT_NAME="$0"
 ########################################################################################
 # Where this script is relative to project directory
 PROGRAM_NAME="YOUR PROGRAM NAME"
+RUN_SCRIPT="./run.python.sh"
+KILL_SCRIPT="./kill.by.port.sh"
 LOGFILE_FOLDER=".."
 DO_TEST_AFTER_START=0
 # Config Files
@@ -66,7 +68,7 @@ echo "[$SCRIPT_NAME] $PROGRAM_NAME For config $CF, set configfile to $CONFIGFILE
 # Kill Intent APIs wrapped in gunicorn
 #
 echo "[$SCRIPT_NAME] Try to kill $PROGRAM_NAME processes.."
-if ! ./kill.by.port.sh port="$PORT"; then
+if ! "$KILL_SCRIPT" port="$PORT"; then
   echo "[$SCRIPT_NAME] ERROR $PROGRAM_NAME Unable to kill existing processes.."
   exit 1
 else
@@ -81,7 +83,7 @@ echo ""
 echo ""
 echo "[$SCRIPT_NAME] ***** RESTARTING $PROGRAM_NAME $CF PORT $PORT *****"
 echo "[$SCRIPT_NAME] Executing in folder $(pwd), configfile=$CONFIGFILE port=$PORT with out/err files '$STDOUTERRFILE'."
-if ! ./run.python.sh \
+if ! "$RUN_SCRIPT" \
         configfile="$CONFIGFILE" \
         port="$PORT" \
         >"$STDOUTERRFILE" 2>&1 &

@@ -11,6 +11,10 @@ PROGRAM_NAME="nwae utils"
 SCRIPT_DIR="deploy-scripts"
 PYTHON_VER="3.6"
 USE_GUNICORN=0
+GUNICORN_WORKERS=2
+# sync (CPU intensive), gthread (I/O intensive)
+GUNICORN_WORKER_TYPE="gthread"
+GUNICORN_WORKER_TYPE_FLAG=""
 SOURCE_DIR="../src"
 COMPILE_MODULE="."
 MODULE_TO_RUN="nwae.utils.Log"
@@ -31,17 +35,7 @@ for keyvalue in "$@"; do
     echo "[$SCRIPT_NAME] Key value pair [$keyvalue]"
     IFS='=' # space is set as delimiter
     read -ra KV <<< "$keyvalue" # str is read into an array as tokens separated by IFS
-    if [ "$KV" == "workers" ] ; then
-        GUNICORN_WORKERS="${KV[1]}"
-        echo "[$SCRIPT_NAME]  Set number of gunicorn workers to $GUNICORN_WORKERS."
-    elif [ "$KV" == "workertype" ] ; then
-        WORKER_TYPE="${KV[1]}"
-        if [ "$WORKER_TYPE" == "gthread" ] ; then
-            echo "[$SCRIPT_NAME]  Worker type is gthread, setting 2 threads."
-            WORKER_TYPE_FLAG="--thread=2"
-        fi
-        echo "[$SCRIPT_NAME]  Set worker type to $WORKER_TYPE."
-    elif [ "$KV" == "port" ] ; then
+    if [ "$KV" == "port" ] ; then
         PORT="${KV[1]}"
         echo "[$SCRIPT_NAME] Set port to $PORT."
     elif [ "$KV" == "configfile" ] ; then
@@ -174,9 +168,9 @@ else
   exit 1
   PYTHONPATH="$PROJECTDIR"/"$SOURCE_DIR":"$EXTERNAL_SRC_FOLDERS" \
    $GUNICORN_BIN \
-      -w "$GUNICORN_WORKERS" -k "$WORKER_TYPE" $WORKER_TYPE_FLAG \
+      -w "$GUNICORN_WORKERS" -k "$GUNICORN_WORKER_TYPE" $GUNICORN_WORKER_TYPE_FLAG \
       --bind 0.0.0.0:"$PORT" \
-         ie.api.Gunicorn:app \
+         "$MODULE_TO_RUN" \
             configfile="$CONFIGFILE" \
             port="$PORT"
 fi
