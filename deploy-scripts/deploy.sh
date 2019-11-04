@@ -10,6 +10,7 @@ SCRIPT_NAME="$0"
 PROGRAM_NAME="YOUR PROGRAM NAME"
 RUN_SCRIPT="./run.python.sh"
 KILL_SCRIPT="./kill.by.port.sh"
+CLEANUP_SCRIPT=""
 LOGFILE_FOLDER=".."
 DO_TEST_AFTER_START=0
 # Config Files
@@ -63,6 +64,20 @@ if [ "$CF" == "" ]; then
 fi
 
 echo "[$SCRIPT_NAME] $PROGRAM_NAME For config $CF, set configfile to $CONFIGFILE, port to $PORT."
+
+#
+# First we do cleanup, better than setting in cron
+#
+if [ "$CLEANUP_SCRIPT" == "" ]; then
+  echo "[$SCRIPT_NAME] MISSING No cleanup script specified"
+else
+  if "$CLEANUP_SCRIPT"; then
+    echo "[$SCRIPT_NAME] OK. Log/etc files cleanup successful."
+  else
+    echo "[$SCRIPT_NAME] ERROR cleaning up log/etc files. Please do it manually."
+  fi
+fi
+sleep 0.5
 
 #
 # Kill Intent APIs wrapped in gunicorn
