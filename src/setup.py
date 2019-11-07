@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='nwae.utils',
-    version='1.3.6',
+    version='1.3.7',
     packages=[
         'nwae.utils'
     ],
@@ -10,6 +10,6 @@ setup(
     url='',
     license='',
     author='nwae',
-    author_email='705270564@qq.com',
+    author_email='m5251@naver.com',
     description='Basic & Useful Utilities'
 )
