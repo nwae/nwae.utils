@@ -9,6 +9,7 @@ SCRIPT_NAME="$0"
 # Where this script is relative to project directory
 PROGRAM_NAME="nwae utils"
 SCRIPT_DIR="deploy-scripts"
+COMPULSORY_CMDLINE_PARAMS=""
 PYTHON_VER="3.6"
 USE_GUNICORN=0
 GUNICORN_WORKERS=2
@@ -44,7 +45,11 @@ for keyvalue in "$@"; do
     fi
 done
 
-if [ "$PORT" = "" ]; then
+if [ "$CONFIGFILE" = "" ] && [ "$(echo "$COMPULSORY_CMDLINE_PARAMS" | grep -i "configfile")" != "" ]; then
+  echo "[$SCRIPT_NAME] ERROR Configfile not specified on command line. Exit 1."
+  exit 1
+fi
+if [ "$PORT" = "" ] && [ "$(echo "$COMPULSORY_CMDLINE_PARAMS" | grep -i "port")" != "" ]; then
   echo "[$SCRIPT_NAME] ERROR Port not specified on command line. Exit 1."
   exit 1
 fi
