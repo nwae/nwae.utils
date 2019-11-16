@@ -37,9 +37,10 @@ class BaseConfig:
             arg_split = arg.split('=')
             if len(arg_split) == 2:
                 param = arg_split[0].lower()
-                value = arg_split[1]
-                if param in list(pv.keys()):
-                    pv[param] = value
+                value = su.StringUtils.trim(arg_split[1])
+                if value != '':
+                    if param in list(pv.keys()):
+                        pv[param] = value
 
         if pv[BaseConfig.PARAM_CONFIGFILE] is None:
             raise Exception('"' + str(BaseConfig.PARAM_CONFIGFILE) + '" param not found on command line!')
