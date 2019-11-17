@@ -2,9 +2,10 @@ from setuptools import setup
 
 setup(
     name='nwae.utils',
-    version='1.3.9',
+    version='1.4.0',
     packages=[
-        'nwae.utils'
+        'nwae.utils',
+        'nwae.utils.sec'
     ],
     package_dir={'': 'src'},
     url='',

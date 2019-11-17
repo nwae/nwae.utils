@@ -17,7 +17,7 @@ class Profiling:
         return datetime.datetime.now()
 
     @staticmethod
-    def get_time_dif(
+    def get_time_dif_secs(
             start,
             stop,
             decimals=4
@@ -25,6 +25,18 @@ class Profiling:
         diftime = (stop - start)
         diftime = round(diftime.seconds + diftime.microseconds / 1000000, decimals)
         return diftime
+
+    @staticmethod
+    def get_time_dif(
+            start,
+            stop,
+            decimals=4
+    ):
+        return Profiling.get_time_dif_secs(
+            start = start,
+            stop  = stop,
+            decimals = decimals
+        )
 
     @staticmethod
     def get_time_dif_str(
