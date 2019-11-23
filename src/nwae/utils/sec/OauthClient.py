@@ -40,7 +40,7 @@ class OauthClient:
         def ids_callback():
             Log.info(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                + ': Received callback from "' + str(request.remote_addr) + '"'
+                + ': Received callback from "' + str(request.remote_addr) + '": ' + str(request.args)
             )
             error = request.args.get('error', '')
             if error:
@@ -57,7 +57,7 @@ class OauthClient:
             code = request.args.get('code')
             Log.important(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                + ': Authorization code from "' + str(request.remote_addr) + '": "' + str(code) + '".'
+                + ': Authorization code from "' + str(request.remote_addr) + '": "' + str(code) + '"'
             )
 
             # Get access token from IDS
@@ -147,10 +147,30 @@ class OauthClient:
             return retclass(ok=False, error_no=error_no, error_msg=error_msg)
 
     def get_username(self, access_token):
+        Log.info(
+            str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+            + ': Getting username using access token "' + str(access_token) + '".'
+        )
         headers = {"Authorization": "bearer " + access_token}
-        response = requests.get(OauthClient.IDS_URL_GET_USERNAME, headers=headers)
+
+        try:
+            response = requests.get(OauthClient.IDS_URL_GET_USERNAME, headers=headers)
+        except Exception as ex:
+            Log.error(
+                str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                + ': Error getting username: ' + str(ex) + '.'
+            )
+            return None
+
         me_json = response.json()
-        return me_json['name']
+        Log.info(
+            str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+            + ': Get username response: ' + str(me_json)
+        )
+        if 'name' in me_json.keys():
+            return me_json['name']
+        else:
+            return None
 
     # You may want to store valid states in a database or memcache,
     # or perhaps cryptographically sign them and verify upon retrieval.
