@@ -6,6 +6,8 @@ import requests
 import requests.auth
 from nwae.utils.Log import Log
 from inspect import getframeinfo, currentframe
+from nwae.utils.ObjectPersistence import ObjectPersistence
+from datetime import datetime, timedelta
 
 rest_flask = Flask(__name__)
 
@@ -40,8 +42,16 @@ class OauthClient:
     RESP_TYPE_AUTH_CODE = 'code'
     GRANT_TYPE_AUTH_CODE = 'authorization_code'
 
+    RELAY_STATE_CACHE_FILE = '/tmp/oauth_relay_state_cache'
+    RELAY_STATE_CACHE_LOCK_FILE = '/tmp/oauth_relay_state_cache.lock'
+
     def __init__(self):
         self.app = rest_flask
+        self.relay_state_cache = {}
+        self.relay_state_cache_file = OauthClient.RELAY_STATE_CACHE_FILE
+        self.relay_state_cache_lock_file = OauthClient.RELAY_STATE_CACHE_LOCK_FILE
+        # Call once
+        self.update_relay_state_from_cache()
 
         @rest_flask.route('/')
         def ids_login_page():
@@ -63,7 +73,7 @@ class OauthClient:
                 )
                 return "Error: " + error
             state = request.args.get(OauthClient.KEY_RELAY_STATE, '')
-            if not self.is_valid_state(state):
+            if not self.check_validity_of_relay_state(state):
                 # Uh-oh, this request wasn't started by us!
                 abort(403)
             auth_code = request.args.get(OauthClient.KEY_AUTH_CODE)
@@ -93,6 +103,10 @@ class OauthClient:
         # Save it for use later to prevent xsrf attacks
         from uuid import uuid4
         state = str(uuid4())
+        Log.important(
+            str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+            + ': Created relay state "' + str(state) + '" for new request.'
+        )
         self.save_created_state(state)
         params = {
             OauthClient.KEY_CLIENT_ID:    OauthClient.CLIENT_ID,
@@ -121,7 +135,7 @@ class OauthClient:
         }
         Log.info(
             str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                + ': Requesting access token using authorization code "' + str(authorization_code)
+            + ': Requesting access token using authorization code "' + str(authorization_code)
             + '", post data: ' + str(post_data)
         )
         response = requests.post(
@@ -191,19 +205,83 @@ class OauthClient:
         except:
             return None
 
+    def check_validity_of_relay_state(self, state):
+        self.update_relay_state_from_cache()
+        return self.is_state_valid(state=state)
+
+    #
+    # We don't update the cache from memory, caller is supposed to do that.
+    # Because this function is called from many places.
+    #
+    def is_state_valid(self, state):
+        if state in self.relay_state_cache.keys():
+            state_obj = self.relay_state_cache[state]
+            create_time = state_obj['create_timestamp']
+            expire_time = state_obj['expire_timestamp']
+            is_valid = datetime.now() < expire_time
+            Log.info(
+                str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                + ': State "' + str(state) + '" create/expire "' + str(create_time) + '", "' + str(expire_time)
+                + '". Valid = ' + str(is_valid)
+            )
+            return is_valid
+        else:
+            return False
+
+    def update_relay_state_from_cache(self):
+        rs_from_cache = ObjectPersistence.deserialize_object_from_file(
+            obj_file_path = self.relay_state_cache_file,
+            lock_file_path = self.relay_state_cache_lock_file
+        )
+        if rs_from_cache is None:
+            Log.warning(
+                str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                + ': Relay state cache empty from file "' + str(self.relay_state_cache_file)
+            )
+        else:
+            self.relay_state_cache = rs_from_cache
+
+        # Cleanup
+        states_to_delete = []
+        for state in self.relay_state_cache.keys():
+            if not self.is_state_valid(state=state):
+                states_to_delete.append(state)
+
+        for state in states_to_delete:
+            del self.relay_state_cache[state]
+            Log.important(
+                str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                + ': Expired Relay state "' + str(state) + '" removed from relay state cache successfully'
+            )
+        self.update_relay_state_to_storage()
+
+    def update_relay_state_to_storage(self):
+        res = ObjectPersistence.serialize_object_to_file(
+            obj = self.relay_state_cache,
+            obj_file_path = self.relay_state_cache_file,
+            lock_file_path = self.relay_state_cache_lock_file
+        )
+        if not res:
+            Log.warning(
+                str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                + ': Relay state not serialized to file!'
+            )
+        else:
+            Log.info(
+                str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                + ': Relay state successfully serialized to file "' + str(self.relay_state_cache_file)
+                + '": ' + str(self.relay_state_cache)
+            )
+
     # You may want to store valid states in a database or memcache,
     # or perhaps cryptographically sign them and verify upon retrieval.
     def save_created_state(self, state):
-        #
-        # TODO Save state
-        #
-        pass
-
-    def is_valid_state(self, state):
-        #
-        # TODO Check for valid state
-        #
-        return True
+        self.update_relay_state_from_cache()
+        self.relay_state_cache[state] = {
+            'create_timestamp': datetime.now(),
+            'expire_timestamp': datetime.now() + timedelta(seconds=30)
+        }
+        self.update_relay_state_to_storage()
 
 
 if __name__ == '__main__':
