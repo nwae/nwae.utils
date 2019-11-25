@@ -17,6 +17,7 @@ class ObjectPersistence:
             obj_file_path,
             lock_file_path
     ):
+        self.default_obj = default_obj
         self.obj = default_obj
         self.obj_file_path = obj_file_path
         self.lock_file_path = lock_file_path
@@ -28,14 +29,6 @@ class ObjectPersistence:
             + ': New object persistence created from "' + str(self.obj_file_path)
             + '", lock file "' + str(self.lock_file_path) + '" as: ' + str(self.obj)
         )
-        if type(default_obj) != type(self.obj):
-            lg.Log.warning(
-                str(__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                + ': Object read from file "' + str(self.obj_file_path)
-                + '" of type "' + str(type(self.obj)) + ', different with default obj type "'
-                + str(type(default_obj)) + '". Setting obj back to default obj.'
-            )
-            self.obj = default_obj
         return
 
     #
@@ -77,6 +70,14 @@ class ObjectPersistence:
                 + ': Error reading from file "' + str(self.obj_file_path)
                 + '", lock file "' + str(self.lock_file_path) + '". Returning memory object.'
             )
+        if type(self.default_obj) != type(self.obj):
+            lg.Log.warning(
+                str(__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                + ': Object read from file "' + str(self.obj_file_path)
+                + '" of type "' + str(type(self.obj)) + ', different with default obj type "'
+                + str(type(self.default_obj)) + '". Setting obj back to default obj.'
+            )
+            self.obj = self.default_obj
         return self.obj
 
     @staticmethod
