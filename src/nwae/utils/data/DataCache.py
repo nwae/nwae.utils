@@ -2,10 +2,8 @@
 import threading
 import datetime as dt
 import time as t
-import mozg.common.util.Profiling as prf
-import mozg.common.data.security.Auth as au
-import mozg.common.data.security.AuthConfig as authcfg
-import mozg.common.util.Log as lg
+import nwae.utils.Profiling as prf
+import nwae.utils.Log as lg
 from inspect import currentframe, getframeinfo
 
 
