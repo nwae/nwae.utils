@@ -325,7 +325,7 @@ class DataCache(threading.Thread):
             if self.reload_all_every_n_secs is None:
                 lg.Log.important(
                     str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                    + ': Cache "' + str(cache_identifier) + '" thread ended, not doing periodic reload of all data.'
+                    + ': Cache "' + str(self.cache_identifier) + '" thread ended, not doing periodic reload of all data.'
                 )
                 break
 
