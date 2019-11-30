@@ -415,8 +415,8 @@ if __name__ == '__main__':
     print('===================================================================================')
     # 3rd round force to get from cache
     obj.expire_secs = 0
-    print('DATA ROW: ' + str(obj.get(table_id=id)))
-    print('DATA COLUMN: ' + str(obj.get(table_id=id, column_name=column_name)))
+    print('DATA ROW: ' + str(obj.get(table_id=id, use_only_cache_data=True)))
+    print('DATA COLUMN: ' + str(obj.get(table_id=id, column_name=column_name, use_only_cache_data=True)))
 
     t.sleep(2)
     print('===================================================================================')
