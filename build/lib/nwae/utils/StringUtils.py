@@ -10,15 +10,27 @@ class StringUtils(object):
         return
 
     @staticmethod
-    def trim(str):
-        # Remove only beginning/ending space, tab, newline, return carriage
-        s = re.sub('[ \t\n\r]+$', '', re.sub('^[ \t\n\r]+', '', str))
-        return s
+    def trim(string):
+        try:
+            # Remove only beginning/ending space, tab, newline, return carriage
+            s = re.sub('[ \t\n\r]+$', '', re.sub('^[ \t\n\r]+', '', string))
+            return s
+        except Exception as ex:
+            print(
+                str(StringUtils.__name__) + ': trim "' + str(string) + ' + " exception "' + str(ex) + '".'
+            )
+            return string
 
     @staticmethod
-    def remove_newline(str, replacement=''):
-        s = re.sub('[\n\r]+', replacement, str)
-        return s
+    def remove_newline(string, replacement=''):
+        try:
+            s = re.sub('[\n\r]+', replacement, string)
+            return s
+        except Exception as ex:
+            print(
+                str(StringUtils.__name__) + ': remove_newline "' + str(string) + ' + " exception "' + str(ex) + '".'
+            )
+            return string
 
     @staticmethod
     def split(string, split_word):
