@@ -14,9 +14,6 @@ class DataCache(threading.Thread):
     # 5 minutes default
     CACHE_EXPIRE_SECS = 5*60
 
-    # Derived columns
-    COL_LAST_UPDATE_TIME = '__lastUpdateTimeCache'
-
     # Singletons by bot key or any identifier
     SINGLETON_OBJECT = {}
     SINGLETON_OBJECT_MUTEX = threading.Lock()
@@ -86,7 +83,9 @@ class DataCache(threading.Thread):
         self.reload_all_every_n_secs = reload_all_every_n_secs
 
         # Keep in a dict
-        self.__db_cache = None
+        self.__db_cache = {}
+        self.__db_cache_last_update_time = {}
+        self.__is_db_cache_loaded = False
         self.__mutex_db_cache_df = threading.Lock()
 
         self.stoprequest = threading.Event()
@@ -101,7 +100,7 @@ class DataCache(threading.Thread):
         super(DataCache, self).join(timeout=timeout)
 
     def is_loaded_from_db(self):
-        return (self.__db_cache is not None)
+        return self.__is_db_cache_loaded
 
     #
     # Updates data frame containing Table rows
@@ -110,23 +109,30 @@ class DataCache(threading.Thread):
             self,
             # New rows from DB
             db_rows,
-            # Our cache in Data Frame format, without modifying what we get from DB, just add last update column
-            cache_obj,
             # mutex to lock df
             mutex
     ):
-        if cache_obj is None:
+        if not self.__is_db_cache_loaded:
             return
 
         try:
             mutex.acquire()
             for row in db_rows:
-                row[DataCache.COL_LAST_UPDATE_TIME] = dt.datetime.now()
-                key = row[self.db_table_id_name]
-                cache_obj[key] = row
+                if type(row) is not dict:
+                    raise Exception(
+                        'Row to update is not dict type: ' + str(row)
+                    )
+                if self.db_table_id_name not in row.keys():
+                    raise Exception(
+                        'Column table id name "' + str(self.db_table_id_name)
+                        + '" not found in row to update: ' + str(row)
+                    )
+                id = row[self.db_table_id_name]
+                self.__db_cache[id] = row
+                self.__db_cache_last_update_time[id] = dt.datetime.now()
                 lg.Log.info(
                     str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                    + ': Cache "' + str(self.cache_identifier) + '". Updated row ' + str(key) + ': ' + str(row)
+                    + ': Cache "' + str(self.cache_identifier) + '". Updated row id ' + str(id) + ': ' + str(row)
                 )
         except Exception as ex:
             lg.Log.error(
@@ -137,8 +143,6 @@ class DataCache(threading.Thread):
             )
         finally:
             mutex.release()
-
-        return cache_obj
 
     def is_data_expire(
             self,
@@ -166,9 +170,13 @@ class DataCache(threading.Thread):
     ):
         raise Exception(
             str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno) \
-            + ': Cache "' + str(self.cache_identifier) + '". This method must be overridden in Derived Class'
+            + ': Cache "' + str(self.cache_identifier)
+            + '". Method get_row_by_id_from_db() must be overridden in Derived Class'
         )
 
+    #
+    # By default, return value is always a list if "table_column_name" is None
+    #
     def get_data(
             self,
             table_id,
@@ -181,11 +189,15 @@ class DataCache(threading.Thread):
     ):
         # Try to convert, this might throw exception
         if type(table_id) is not int:
-            table_id = int(table_id)
-        assert isinstance(table_id, int),\
-            str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno)\
-            + ': Cache "' + str(self.cache_identifier)\
-            + '". Get intent column "' + str(table_column_name) +'". Table ID should be integer type.'
+            try:
+                table_id = int(table_id)
+            except Exception as ex_int:
+                errmsg = \
+                    str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno)\
+                    + ': Cache "' + str(self.cache_identifier) + '" Table ID "' + str(table_id)\
+                    + '" error. Get column "' + str(table_column_name) +'". Table ID should be integer type.'
+                lg.Log.error(errmsg)
+                return None
 
         value = None
         try:
@@ -193,8 +205,9 @@ class DataCache(threading.Thread):
             if (self.__db_cache is not None) and (not no_cache):
                 index_list = self.__db_cache.keys()
                 if table_id in index_list:
+                    # From cache is dict type
                     row = self.__db_cache[table_id]
-                    last_update_time = row[DataCache.COL_LAST_UPDATE_TIME]
+                    last_update_time = self.__db_cache_last_update_time[table_id]
 
                     is_data_expired = self.is_data_expire(last_update_time=last_update_time)
 
@@ -214,11 +227,16 @@ class DataCache(threading.Thread):
                         if table_column_name:
                             return row[table_column_name]
                         else:
-                            return row
+                            # By default return value is always a list if column not specified
+                            if type(row) not in [list, tuple]:
+                                return [row]
+                            else:
+                                # Possible single id maps to multiple rows?
+                                return row
                 else:
                     lg.Log.debug(
                         str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                        + ': Table ID not in DB Intent Cache, Get intent column "' + str(table_column_name)
+                        + ': Table ID not in DB Cache, Get intent column "' + str(table_column_name)
                         + '" for table ID ' + str(table_id) + '.'
                     )
             else:
@@ -230,18 +248,31 @@ class DataCache(threading.Thread):
                 )
 
             row_from_db = self.get_row_by_id_from_db(table_id=table_id)
+            if row_from_db is None:
+                return None
+            if type(row_from_db) is dict:
+                warnmsg = str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno) \
+                         + ': Expecting a list, but got dict type from DB rows for ' + str(table_id) \
+                         + ', rows data: ' + str(row_from_db)
+                lg.Log.warning(warnmsg)
+                # Default return type is always list
+                row_from_db = [row_from_db]
 
             if len(row_from_db) != 1:
                 errmsg = str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno)\
                          + ': Expecting 1 row returned for table ID ' + str(table_id)\
                          + ', but got ' + str(row_from_db) + ' rows. Rows data:\n\r' + str(row_from_db)
-                lg.Log.critical(errmsg)
-                raise Exception(errmsg)
+                lg.Log.error(errmsg)
+                return None
 
             if table_column_name:
                 value = row_from_db[0][table_column_name]
             else:
-                value = row_from_db
+                # By default return value is always a list if column not specified
+                if type(row_from_db) not in [list, tuple]:
+                    return [row_from_db]
+                else:
+                    value = row_from_db
         except Exception as ex:
             errmsg = str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno)\
                      + ': Exception occured getting table id ' + str(table_id)\
@@ -252,10 +283,9 @@ class DataCache(threading.Thread):
         finally:
             self.__mutex_db_cache_df.release()
 
-        if self.__db_cache is not None:
-            self.__db_cache = self.update_cache(
+        if self.__is_db_cache_loaded:
+            self.update_cache(
                 db_rows    = row_from_db,
-                cache_obj  = self.__db_cache,
                 mutex      = self.__mutex_db_cache_df
             )
 
@@ -271,6 +301,12 @@ class DataCache(threading.Thread):
             table_id = table_id,
             table_column_name = column_name,
             use_only_cache_data = use_only_cache_data
+        )
+
+    def get_all_data(self):
+        raise Exception(
+            str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno) \
+            + ': Cache "' + str(self.cache_identifier) + '". Method get_all_data() must be overridden in Derived Class.'
         )
 
     def run(self):
@@ -294,7 +330,8 @@ class DataCache(threading.Thread):
                 try:
                     self.__mutex_db_cache_df.acquire()
 
-                    rows = self.db_obj.get()
+                    rows = self.get_all_data()
+
                     lg.Log.debug(
                         str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
                         + ': Data Cache "' + str(self.cache_identifier) + '" got rows: ' + str(rows)
@@ -302,23 +339,25 @@ class DataCache(threading.Thread):
                     update_time = dt.datetime.now()
 
                     self.__db_cache = {}
+                    self.__db_cache_last_update_time = {}
                     for row in rows:
                         id = row[self.db_table_id_name]
-                        # Add a last update time to the data row
-                        row[DataCache.COL_LAST_UPDATE_TIME] = update_time
                         self.__db_cache[id] = row
+                        self.__db_cache_last_update_time[id] = update_time
 
                     lg.Log.important(
                         str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                        + ': DB Cache "' + str(self.cache_identifier) + '" READY. Read'
+                        + ': DB Cache "' + str(self.cache_identifier) + '" READY. Read '
                         + str(len(self.__db_cache.keys())) + ' rows.'
                     )
+                    self.__is_db_cache_loaded = True
                 except Exception as ex:
-                    lg.Log.error(
-                        str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                        + ': Cache "' + str(self.cache_identifier)
+                    errmsg = \
+                        str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
+                        + ': Cache "' + str(self.cache_identifier) \
                         + '" Exception getting all data, exception message "' + str(ex) + '"'
-                    )
+                    lg.Log.error(errmsg)
+                    raise Exception(errmsg)
                 finally:
                     self.__mutex_db_cache_df.release()
 
@@ -344,6 +383,9 @@ if __name__ == '__main__':
                 table_id
         ):
             return self.db_obj.get(id=table_id)
+
+        def get_all_data(self):
+            return self.db_obj.get()
 
     class MyDataObject:
         def get(self, id=None):
@@ -392,8 +434,14 @@ if __name__ == '__main__':
         print('Not yet ready cache')
     print('READY')
 
-    id = 222
+    id = 333
+    print('===================================================================================')
+    print('================================== TEST WRONG ID ==================================')
+    print('===================================================================================')
+    print('DATA ROW: ' + str(obj.get(table_id=id)))
+    print('DATA COLUMN: ' + str(obj.get(table_id=id, column_name=column_name)))
 
+    id = 222
     print('===================================================================================')
     print('=========================== FIRST ROUND GETS FROM CACHE ===========================')
     print('===================================================================================')
