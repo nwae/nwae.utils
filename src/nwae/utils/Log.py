@@ -140,7 +140,7 @@ class Log:
         # Because sometimes we just dump whole objects to log
         s = str(s)
 
-        s = su.StringUtils.trim(str=s)
+        s = su.StringUtils.trim(s)
         if len(s) == 0:
             return
 
