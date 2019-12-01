@@ -123,10 +123,12 @@ class DataCache(threading.Thread):
                         'Row to update is not dict type: ' + str(row)
                     )
                 if self.db_table_id_name not in row.keys():
-                    raise Exception(
-                        'Column table id name "' + str(self.db_table_id_name)
-                        + '" not found in row to update: ' + str(row)
-                    )
+                    warnmsg = \
+                        'Cache "' + str(self.cache_identifier)\
+                        + '". Ignoring row because column table id name "' + str(self.db_table_id_name) \
+                        + '" not found in row to update: ' + str(row) + '.'
+                    lg.Log.warning(warnmsg)
+
                 id = row[self.db_table_id_name]
                 self.__db_cache[id] = row
                 self.__db_cache_last_update_time[id] = dt.datetime.now()
