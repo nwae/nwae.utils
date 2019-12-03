@@ -176,6 +176,9 @@ class BaseDataCache(threading.Thread):
             + '". Method get_row_by_id_from_db() must be overridden in Derived Class'
         )
 
+    def get_all_data_keys(self):
+        return self.__db_cache.keys()
+
     #
     # By default, return value is always a list if "table_column_name" is None
     #
@@ -205,7 +208,7 @@ class BaseDataCache(threading.Thread):
         data_from_cache = None
         try:
             self.__mutex_db_cache_df.acquire()
-            if (self.__db_cache is not None) and (not no_cache):
+            if not no_cache:
                 index_list = self.__db_cache.keys()
                 if table_id in index_list:
                     # From cache is dict type
