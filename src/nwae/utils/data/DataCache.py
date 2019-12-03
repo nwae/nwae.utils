@@ -7,7 +7,7 @@ import nwae.utils.Log as lg
 from inspect import currentframe, getframeinfo
 
 
-class DataCache(threading.Thread):
+class BaseDataCache(threading.Thread):
 
     THREAD_SLEEP_TIME = 5
 
@@ -31,7 +31,7 @@ class DataCache(threading.Thread):
         DerivedClass.SINGLETON_OBJECT_MUTEX.acquire()
 
         try:
-            if cache_identifier in DataCache.SINGLETON_OBJECT.keys():
+            if cache_identifier in BaseDataCache.SINGLETON_OBJECT.keys():
                 if DerivedClass.SINGLETON_OBJECT[cache_identifier] is not None:
                     lg.Log.important(
                         str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
@@ -73,7 +73,7 @@ class DataCache(threading.Thread):
             # If None, means we reload all only once and quit thread
             reload_all_every_n_secs = None
     ):
-        super(DataCache, self).__init__()
+        super(BaseDataCache, self).__init__()
 
         self.cache_identifier = cache_identifier
         self.db_obj = db_obj
@@ -97,7 +97,7 @@ class DataCache(threading.Thread):
             + ': Cache "' + str(self.cache_identifier) + '" join called..'
         )
         self.stoprequest.set()
-        super(DataCache, self).join(timeout=timeout)
+        super(BaseDataCache, self).join(timeout=timeout)
 
     def is_loaded_from_db(self):
         return self.__is_db_cache_loaded
@@ -201,7 +201,8 @@ class DataCache(threading.Thread):
                 lg.Log.error(errmsg)
                 return None
 
-        value = None
+        # We keep data from cache if exists, in case query from data source fails
+        data_from_cache = None
         try:
             self.__mutex_db_cache_df.acquire()
             if (self.__db_cache is not None) and (not no_cache):
@@ -210,6 +211,13 @@ class DataCache(threading.Thread):
                     # From cache is dict type
                     row = self.__db_cache[table_id]
                     last_update_time = self.__db_cache_last_update_time[table_id]
+
+                    if table_column_name:
+                        # Requested just column name
+                        data_from_cache = row[table_column_name]
+                    else:
+                        # No column name, return entire row dict
+                        data_from_cache = row
 
                     is_data_expired = self.is_data_expire(last_update_time=last_update_time)
 
@@ -225,16 +233,7 @@ class DataCache(threading.Thread):
                             str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
                             + ': Table Type from Cache: ' + str(row)
                         )
-                        # Just get the first row
-                        if table_column_name:
-                            return row[table_column_name]
-                        else:
-                            # By default return value is always a list if column not specified
-                            if type(row) not in [list, tuple]:
-                                return [row]
-                            else:
-                                # Possible single id maps to multiple rows?
-                                return row
+                        return data_from_cache
                 else:
                     lg.Log.debug(
                         str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
@@ -251,7 +250,11 @@ class DataCache(threading.Thread):
 
             row_from_db = self.get_row_by_id_from_db(table_id=table_id)
             if row_from_db is None:
-                return None
+                warnmsg = str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno) \
+                          + ': Query from DB is None, returning data from cache..'
+                lg.Log.warning(warnmsg)
+                return data_from_cache
+
             if type(row_from_db) is dict:
                 warnmsg = str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno) \
                          + ': Expecting a list, but got dict type from DB rows for ' + str(table_id) \
@@ -263,18 +266,15 @@ class DataCache(threading.Thread):
             if len(row_from_db) != 1:
                 errmsg = str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno)\
                          + ': Expecting 1 row returned for table ID ' + str(table_id)\
-                         + ', but got ' + str(row_from_db) + ' rows. Rows data:\n\r' + str(row_from_db)
+                         + ', but got ' + str(row_from_db) + ' rows. Rows data: ' + str(row_from_db) \
+                         + '. Returning data from cache..'
                 lg.Log.error(errmsg)
-                return None
+                return data_from_cache
 
             if table_column_name:
                 value = row_from_db[0][table_column_name]
             else:
-                # By default return value is always a list if column not specified
-                if type(row_from_db) not in [list, tuple]:
-                    return [row_from_db]
-                else:
-                    value = row_from_db
+                value = row_from_db[0]
         except Exception as ex:
             errmsg = str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno)\
                      + ': Exception occured getting table id ' + str(table_id)\
@@ -314,7 +314,7 @@ class DataCache(threading.Thread):
     def run(self):
         lg.Log.critical(
             str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
-            + ': DataCache "' + str(self.cache_identifier) + '" thread started..'
+            + ': BaseDataCache "' + str(self.cache_identifier) + '" thread started..'
         )
 
         time_elapsed_modulo = 0
@@ -370,8 +370,8 @@ class DataCache(threading.Thread):
                 )
                 break
 
-            t.sleep(DataCache.THREAD_SLEEP_TIME)
-            time_elapsed_modulo += DataCache.THREAD_SLEEP_TIME
+            t.sleep(BaseDataCache.THREAD_SLEEP_TIME)
+            time_elapsed_modulo += BaseDataCache.THREAD_SLEEP_TIME
             if time_elapsed_modulo > self.reload_all_every_n_secs:
                 time_elapsed_modulo = 0
 
@@ -379,7 +379,7 @@ class DataCache(threading.Thread):
 
 
 if __name__ == '__main__':
-    class MyCache(DataCache):
+    class MyCache(BaseDataCache):
         def get_row_by_id_from_db(
                 self,
                 table_id
