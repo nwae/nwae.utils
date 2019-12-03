@@ -345,10 +345,11 @@ class BaseDataCache(threading.Thread):
 
                     self.__db_cache = {}
                     self.__db_cache_last_update_time = {}
-                    for row in rows:
-                        id = row[self.db_table_id_name]
-                        self.__db_cache[id] = row
-                        self.__db_cache_last_update_time[id] = update_time
+                    if type(rows) in [list, tuple]:
+                        for row in rows:
+                            id = row[self.db_table_id_name]
+                            self.__db_cache[id] = row
+                            self.__db_cache_last_update_time[id] = update_time
 
                     lg.Log.important(
                         str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
