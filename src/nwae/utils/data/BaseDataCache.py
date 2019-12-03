@@ -7,6 +7,15 @@ import nwae.utils.Log as lg
 from inspect import currentframe, getframeinfo
 
 
+#
+# Base class for data caches, for single table/view from any data source.
+# Steps:
+#   1. Inherit this class
+#   2. If you don't already have one, create a data object class <<MyDataObject>>.
+#   2. Implement methods get_row_by_id() and get_all_data() using <<MyDataObject>>.
+#
+# See main() example below.
+#
 class BaseDataCache(threading.Thread):
 
     THREAD_SLEEP_TIME = 5
