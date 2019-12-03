@@ -18,5 +18,6 @@ src/nwae/utils/SendMail.py
 src/nwae/utils/StringUtils.py
 src/nwae/utils/ThreadGroup.py
 src/nwae/utils/UnitTest.py
+src/nwae/utils/data/BaseDataCache.py
 src/nwae/utils/sec/OauthClient.py
 src/nwae/utils/sec/Totp.py
