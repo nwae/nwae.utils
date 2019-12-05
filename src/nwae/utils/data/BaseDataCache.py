@@ -137,6 +137,7 @@ class BaseDataCache(threading.Thread):
                         + '". Ignoring row because column table id name "' + str(self.db_table_id_name) \
                         + '" not found in row to update: ' + str(row) + '.'
                     lg.Log.warning(warnmsg)
+                    continue
 
                 id = row[self.db_table_id_name]
                 self.__db_cache[id] = row
