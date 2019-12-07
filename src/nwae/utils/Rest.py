@@ -286,7 +286,8 @@ if __name__ == '__main__':
     rest_sec = Rest(url='http://dummy.restapiexample.com/api/v1/employees')
     rest_response = rest_sec.get(
         headers = {
-            'Accept': 'application/json'
+            'Accept': 'application/json',
+            'User-Agent': 'request'
         }
     )
     print(rest_response)
