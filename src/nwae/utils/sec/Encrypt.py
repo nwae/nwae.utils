@@ -40,18 +40,33 @@ class AES_Encrypt:
         self.cipher_mode = mode
         if nonce is None:
             nonce = AES_Encrypt.generate_random_bytes(size=AES_Encrypt.SIZE_NONCE, printable=True)
+
         self.nonce = nonce
         Log.debug('Using nonce "' + str(self.nonce) + '". Size = ' + str(len(self.nonce)))
         return
 
     def encode(
             self,
+            # bytes format
             data
     ):
         try:
-            cipher = AES.new(key=self.key, mode=self.cipher_mode, nonce=self.nonce)
-            ciphertext, tag = cipher.encrypt_and_digest(data)
-            return (ciphertext, tag)
+            if self.cipher_mode == AES.MODE_EAX:
+                cipher = AES.new(key=self.key, mode=self.cipher_mode, nonce=self.nonce)
+                ciphertext, tag = cipher.encrypt_and_digest(data)
+            elif self.cipher_mode == AES.MODE_CBC:
+                # 1-16, make sure not 0, other wise last byte will not be block length
+                length = 16 - (len(data) % 16)
+                # Pad data with the original length, so when we decrypt we can just take data[-1]
+                # as length of data block
+                data += bytes(chr(length), encoding=STR_ENCODING) * length
+                Log.debug('Padded length = ' + str(length))
+                cipher = AES.new(key=self.key, mode=self.cipher_mode, iv=self.nonce)
+                ciphertext = cipher.encrypt(data)
+            else:
+                raise Exception('Unsupported mode "' + str(self.cipher_mode) + '".')
+
+            return ciphertext
         except Exception as ex:
             errmsg = 'Error encoding data "' + str(data) + '" using AES ". Exception: ' + str(ex)
             Log.error(errmsg)
@@ -62,8 +77,17 @@ class AES_Encrypt:
             ciphertext
     ):
         try:
-            cipher = AES.new(key=self.key, mode=self.cipher_mode, nonce=self.nonce)
-            data = cipher.decrypt(ciphertext)
+            if self.cipher_mode == AES.MODE_EAX:
+                cipher = AES.new(key=self.key, mode=self.cipher_mode, nonce=self.nonce)
+                data = cipher.decrypt(ciphertext)
+            elif self.cipher_mode == AES.MODE_CBC:
+                cipher = AES.new(key=self.key, mode=self.cipher_mode, iv=self.nonce)
+                data = cipher.decrypt(ciphertext)
+                Log.debug('Decrypted data length = ' + str(len(data)) + ', modulo 16 = ' + str(len(data) % 128/8))
+                data = data[:-data[-1]]
+            else:
+                raise Exception('Unsupported mode "' + str(self.cipher_mode) + '".')
+
             return str(data, encoding=STR_ENCODING)
         except Exception as ex:
             errmsg = 'Error decoding data "' + str(ciphertext) + '" using AES ". Exception: ' + str(ex)
@@ -72,18 +96,33 @@ class AES_Encrypt:
 
 
 if __name__ == '__main__':
-    Log.LOGLEVEL = Log.LOG_LEVEL_INFO
+    Log.LOGLEVEL = Log.LOG_LEVEL_DEBUG_1
+    long_str = 'x'
+    for i in range(10000):
+        long_str += 'x'
     sentences = [
         '니는 먹고 싶어',
         'Дворянское ГНЕЗДО',
-        '没问题 大陆 经济'
+        '没问题 大陆 经济',
+        '存款方式***2019-12-11 11：38：46***',
+        '1234567890123456',
+        long_str
     ]
 
-    aes_obj = AES_Encrypt(key=AES_Encrypt.generate_random_bytes(size=32, printable=True))
+    key = b'Sixteen byte key'
+    nonce = b'0123456789xxyyzz'
+    # aes_obj = AES_Encrypt(key=AES_Encrypt.generate_random_bytes(size=32, printable=True))
+    aes_obj = AES_Encrypt(
+        key   = key+key,
+        mode  = AES.MODE_CBC,
+        nonce = nonce
+    )
     for s in sentences:
         print('Encrypting "' + str(s) + '"')
-        (ciphertext, tag) = aes_obj.encode(
-            data=bytes(s.encode(encoding=STR_ENCODING))
+        data_bytes = bytes(s.encode(encoding=STR_ENCODING))
+        print('Data length in bytes = ' + str(len(data_bytes)))
+        ciphertext = aes_obj.encode(
+            data = data_bytes
         )
         print('Encrypted as "' + str(ciphertext) + '"')
         plaintext = aes_obj.decode(ciphertext = ciphertext)
@@ -92,4 +131,4 @@ if __name__ == '__main__':
         if s == plaintext:
             print('PASS')
         else:
-            print('FAIL')
+            raise Exception('FAIL')
