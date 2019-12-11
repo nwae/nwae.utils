@@ -8,22 +8,35 @@ class Hash:
 
     STR_ENCODING = 'utf-8'
 
+    ALGO_SHA1 = 'sha1'
+    ALGO_SHA256 = 'sha256'
+    ALGO_SHA512 = 'sha512'
+    ALGO_SHA3_256 = 'sha3_256'
+    ALGO_SHA3_512 = 'sha3_512'
+    ALGO_LIST = [
+        ALGO_SHA1, ALGO_SHA256, ALGO_SHA512, ALGO_SHA3_256, ALGO_SHA3_512
+    ]
+
     def __init__(self):
         return
 
     @staticmethod
     def hash(
             string,
-            algo = 'sha512'
+            algo = ALGO_SHA1
     ):
         str_encode = string.encode(encoding = Hash.STR_ENCODING)
         try:
-            if algo == 'sha1':
+            if algo == Hash.ALGO_SHA1:
                 h = hashlib.sha1(str_encode)
-            elif algo == 'sha256':
+            elif algo == Hash.ALGO_SHA256:
                 h = hashlib.sha256(str_encode)
-            elif algo == 'sha512':
+            elif algo == Hash.ALGO_SHA512:
                 h = hashlib.sha512(str_encode)
+            elif algo == Hash.ALGO_SHA3_256:
+                h = hashlib.sha3_256(str_encode)
+            elif algo == Hash.ALGO_SHA3_512:
+                h = hashlib.sha3_512(str_encode)
             else:
                 raise Exception('Unsupported hash algo "' + str(algo) + '".')
             return h.hexdigest()
@@ -36,9 +49,7 @@ class Hash:
 
 if __name__ == '__main__':
     s = '니는 먹고 싶어'
-    # In Linux command line, echo -n "$s" | shasum -a 1
-    print(Hash.hash(string=s, algo='sha1'))
-    # In Linux command line, echo -n "$s" | shasum -a 256
-    print(Hash.hash(string=s, algo='sha256'))
-    # In Linux command line, echo -n "$s" | shasum -a 512
-    print(Hash.hash(string=s, algo='sha512'))
+    for algo in Hash.ALGO_LIST:
+        # In Linux command line, echo -n "$s" | shasum -a 1 (or 256,512)
+        print('Using algo "' + str(algo) + '":')
+        print(Hash.hash(string=s, algo=algo))
