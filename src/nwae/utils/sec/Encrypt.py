@@ -12,20 +12,22 @@ STR_ENCODING = 'utf-8'
 
 class AES_Encrypt:
 
+    DEFAULT_BLOCK_SIZE_AES_CBC = 16
     SIZE_NONCE = 16
+
+    CHARS_STR = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz' \
+        + 'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдеёжзийклмнопрстуфцчшщъыьэюя' \
+        + 'ㅂㅈㄷㄱ쇼ㅕㅑㅐㅔㅁㄴㅇㄹ호ㅓㅏㅣㅋㅌㅊ퓨ㅜㅡㅃㅉㄸㄲ쑈ㅕㅑㅒㅖㅁㄴㅇㄹ호ㅓㅏㅣㅋㅌㅊ퓨ㅜㅡ' \
+        + 'ๅ/_ภถุึคตจขชๆไำพะัีรนยฟหกดเ้่าสผปแอิืท+๑๒๓๔ู฿๕๖๗๘๙๐ฎฑธ' \
+        + '1234567890' \
+        + '`~!@#$%^&*()_+-=[]\{}|[]\\;\':",./<>?'
 
     @staticmethod
     def generate_random_bytes(size = 16, printable = False):
         if not printable:
             return os.urandom(size)
         else:
-            s = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'\
-                +'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдеёжзийклмнопрстуфцчшщъыьэюя'\
-                + 'ㅂㅈㄷㄱ쇼ㅕㅑㅐㅔㅁㄴㅇㄹ호ㅓㅏㅣㅋㅌㅊ퓨ㅜㅡㅃㅉㄸㄲ쑈ㅕㅑㅒㅖㅁㄴㅇㄹ호ㅓㅏㅣㅋㅌㅊ퓨ㅜㅡ'\
-                + 'ๅ/_ภถุึคตจขชๆไำพะัีรนยฟหกดเ้่าสผปแอิืท+๑๒๓๔ู฿๕๖๗๘๙๐ฎฑธ'\
-                + '1234567890' \
-                + '`~!@#$%^&*()_+-=[]\{}|[]\\;\':",./<>?'
-            rs = ''.join(random.choice(s) for i in range(size))
+            rs = ''.join(random.choice(AES_Encrypt.CHARS_STR) for i in range(size))
             return bytes(rs.encode(encoding=STR_ENCODING))[0:size]
 
     def __init__(
@@ -56,7 +58,7 @@ class AES_Encrypt:
                 ciphertext, tag = cipher.encrypt_and_digest(data)
             elif self.cipher_mode == AES.MODE_CBC:
                 # 1-16, make sure not 0, other wise last byte will not be block length
-                length = 16 - (len(data) % 16)
+                length = AES_Encrypt.DEFAULT_BLOCK_SIZE_AES_CBC - (len(data) % AES_Encrypt.DEFAULT_BLOCK_SIZE_AES_CBC)
                 # Pad data with the original length, so when we decrypt we can just take data[-1]
                 # as length of data block
                 data += bytes(chr(length), encoding=STR_ENCODING) * length
@@ -84,6 +86,7 @@ class AES_Encrypt:
                 cipher = AES.new(key=self.key, mode=self.cipher_mode, iv=self.nonce)
                 data = cipher.decrypt(ciphertext)
                 Log.debug('Decrypted data length = ' + str(len(data)) + ', modulo 16 = ' + str(len(data) % 128/8))
+                # Remove last x bytes encoded in the padded bytes
                 data = data[:-data[-1]]
             else:
                 raise Exception('Unsupported mode "' + str(self.cipher_mode) + '".')
@@ -97,9 +100,9 @@ class AES_Encrypt:
 
 if __name__ == '__main__':
     Log.LOGLEVEL = Log.LOG_LEVEL_DEBUG_1
-    long_str = 'x'
+    long_str = ''
     for i in range(10000):
-        long_str += 'x'
+        long_str += random.choice(AES_Encrypt.CHARS_STR)
     sentences = [
         '니는 먹고 싶어',
         'Дворянское ГНЕЗДО',
