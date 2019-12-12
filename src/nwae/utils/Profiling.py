@@ -23,7 +23,7 @@ class Profiling:
             decimals=4
     ):
         diftime = (stop - start)
-        diftime = round(diftime.seconds + diftime.microseconds / 1000000, decimals)
+        diftime = round(diftime.days*86400 + diftime.seconds + diftime.microseconds / 1000000, decimals)
         return diftime
 
     @staticmethod
