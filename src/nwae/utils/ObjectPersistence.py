@@ -62,12 +62,12 @@ class ObjectPersistence:
             obj_file_path  = self.obj_file_path,
             lock_file_path = self.lock_file_path
         )
-        if obj_read:
+        if obj_read is not None:
             self.obj = obj_read
         else:
             lg.Log.error(
                 str(__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                + ': Error reading from file "' + str(self.obj_file_path)
+                + ': None object from file "' + str(self.obj_file_path)
                 + '", lock file "' + str(self.lock_file_path) + '". Returning memory object.'
             )
         if type(self.default_obj) != type(self.obj):
@@ -111,6 +111,7 @@ class ObjectPersistence:
                 file     = fhandle,
                 protocol = pickle.HIGHEST_PROTOCOL
             )
+            fhandle.close()
             lg.Log.debug(
                 str(ObjectPersistence.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
                 + ': Object "' + str(obj)
@@ -158,6 +159,7 @@ class ObjectPersistence:
             obj = pickle.load(
                 file = fhandle
             )
+            fhandle.close()
             lg.Log.debug(
                 str(ObjectPersistence.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
                 + ': Object "' + str(obj) + '" deserialized successfully from file "' + str(obj_file_path)
@@ -191,13 +193,11 @@ if __name__ == '__main__':
     ObjectPersistence.serialize_object_to_file(
         obj = obj,
         obj_file_path = obj_file_path,
-        lock_file_path = lock_file_path,
-        verbose = 3
+        lock_file_path = lock_file_path
     )
 
     b = ObjectPersistence.deserialize_object_from_file(
         obj_file_path = obj_file_path,
-        lock_file_path = lock_file_path,
-        verbose = 3
+        lock_file_path = lock_file_path
     )
     print(str(b))
