@@ -7,6 +7,15 @@ import nwae.utils.Log as lg
 from inspect import currentframe, getframeinfo
 
 
+#
+# Base class for data caches, for single table/view from any data source.
+# Steps:
+#   1. Inherit this class
+#   2. If you don't already have one, create a data object class <<MyDataObject>>.
+#   2. Implement methods get_row_by_id() and get_all_data() using <<MyDataObject>>.
+#
+# See main() example below.
+#
 class BaseDataCache(threading.Thread):
 
     THREAD_SLEEP_TIME = 5
@@ -128,6 +137,7 @@ class BaseDataCache(threading.Thread):
                         + '". Ignoring row because column table id name "' + str(self.db_table_id_name) \
                         + '" not found in row to update: ' + str(row) + '.'
                     lg.Log.warning(warnmsg)
+                    continue
 
                 id = row[self.db_table_id_name]
                 self.__db_cache[id] = row
@@ -176,6 +186,9 @@ class BaseDataCache(threading.Thread):
             + '". Method get_row_by_id_from_db() must be overridden in Derived Class'
         )
 
+    def get_all_data_keys(self):
+        return self.__db_cache.keys()
+
     #
     # By default, return value is always a list if "table_column_name" is None
     #
@@ -205,7 +218,7 @@ class BaseDataCache(threading.Thread):
         data_from_cache = None
         try:
             self.__mutex_db_cache_df.acquire()
-            if (self.__db_cache is not None) and (not no_cache):
+            if not no_cache:
                 index_list = self.__db_cache.keys()
                 if table_id in index_list:
                     # From cache is dict type
@@ -342,10 +355,11 @@ class BaseDataCache(threading.Thread):
 
                     self.__db_cache = {}
                     self.__db_cache_last_update_time = {}
-                    for row in rows:
-                        id = row[self.db_table_id_name]
-                        self.__db_cache[id] = row
-                        self.__db_cache_last_update_time[id] = update_time
+                    if type(rows) in [list, tuple]:
+                        for row in rows:
+                            id = row[self.db_table_id_name]
+                            self.__db_cache[id] = row
+                            self.__db_cache_last_update_time[id] = update_time
 
                     lg.Log.important(
                         str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)

@@ -8,6 +8,7 @@ src/nwae/utils/Cleanup.py
 src/nwae/utils/CmdLine.py
 src/nwae/utils/Encode.py
 src/nwae/utils/FileUtils.py
+src/nwae/utils/Hash.py
 src/nwae/utils/Json.py
 src/nwae/utils/LockFile.py
 src/nwae/utils/Log.py
@@ -19,5 +20,6 @@ src/nwae/utils/StringUtils.py
 src/nwae/utils/ThreadGroup.py
 src/nwae/utils/UnitTest.py
 src/nwae/utils/data/BaseDataCache.py
+src/nwae/utils/sec/Encrypt.py
 src/nwae/utils/sec/OauthClient.py
 src/nwae/utils/sec/Totp.py

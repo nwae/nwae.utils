@@ -8,27 +8,33 @@ from inspect import currentframe, getframeinfo
 
 class Rest():
 
+    TIMEOUT_DEFAULT = 10
+
     def __init__(
             self,
-            url,
-            verbose=0
+            url
     ):
         self.url = url
-        self.verbose = verbose
         return
 
     def get(
             self,
             headers = None,
-            ext = None
+            ext = None,
+            # By default verify certificate
+            verify = True,
+            # By default wait forever?
+            timeout = TIMEOUT_DEFAULT
     ):
         resturl = self.url
         if ext is not None:
             resturl = self.url + '/' + ext
 
-        lg.Log.debugdebug(str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                          + ' ' + str(getframeinfo(currentframe()).lineno)
-                          + ': Rest GET Request String [' + resturl + ']')
+        lg.Log.debug(
+            str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+            + ' ' + str(getframeinfo(currentframe()).lineno)
+            + ': Rest GET Request String [' + resturl + ']'
+        )
 
         # Return data
         jData = None
@@ -38,7 +44,9 @@ class Rest():
         try:
             restResponse = requests.get(
                 url     = resturl,
-                headers = headers
+                headers = headers,
+                verify  = verify,
+                timeout = timeout
             )
         except Exception as ex:
             errmsg = str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)\
@@ -70,7 +78,8 @@ class Rest():
             # If response code is not ok (200), print the resulting http error code with description
             errmsg = str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)\
                      + ': REST GET RESPONSE ERROR. URL=[' +  str(resturl)\
-                     + ']. Status Code=' + str(restResponse.status_code)
+                     + ']. Status Code=' + str(restResponse.status_code)\
+                     + '. Response "' + str(restResponse) + '"'
             lg.Log.critical(errmsg)
             #restResponse.raise_for_status()
             raise Exception(errmsg)
@@ -80,16 +89,22 @@ class Rest():
             data,
             headers = None,
             ext = None,
+            # By default verify certificate
+            verify = True,
+            # By default wait forever?
+            timeout = TIMEOUT_DEFAULT,
             return_true_false_status = False
     ):
         resturl = self.url
         if ext is not None:
             resturl = self.url + '/' + ext
 
-        lg.Log.debugdebug(str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                   + ': Rest POST Request [' + self.url +
-                   '], headers [' + str(headers) + ']' +
-                   '], data [' + str(data) + ']')
+        lg.Log.debug(
+            str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+            + ': Rest POST Request [' + self.url +
+            '], headers [' + str(headers) + ']' +
+            '], data [' + str(data) + ']'
+        )
 
         # Make REST POST query
         try:
@@ -100,13 +115,17 @@ class Rest():
                 restResponse = requests.post(
                     url     = resturl,
                     json    = data,
-                    headers = headers
+                    headers = headers,
+                    verify  = verify,
+                    timeout = timeout
                 )
             else:
                 restResponse = requests.post(
                     url     = resturl,
                     data    = data,
-                    headers = headers
+                    headers = headers,
+                    verify  = verify,
+                    timeout = timeout
                 )
         except Exception as ex:
             errmsg = str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)\
@@ -142,20 +161,29 @@ class Rest():
                      + ']. Status Code=' + str(restResponse.status_code) \
                      + ' Data=' + str(data)
             lg.Log.critical(errmsg)
-            raise Exception(errmsg)
+            raise Exception(
+                ': REST RESPONSE ERROR. URL=[' +  resturl
+                + ']. Status Code=' + str(restResponse.status_code)
+            )
 
     def put(
             self,
             data,
             headers = None,
-            ext = None
+            ext = None,
+            # By default verify certificate
+            verify  = True,
+            # By default wait forever?
+            timeout = TIMEOUT_DEFAULT,
     ):
         resturl = self.url
         if ext is not None:
             resturl = self.url + '/' + ext
 
-        lg.Log.debugdebug(str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                          + ': Rest PUT Request [' + self.url + ']')
+        lg.Log.debug(
+            str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+            + ': Rest PUT Request [' + self.url + ']'
+        )
 
         # Return status
         restResponse = False
@@ -169,13 +197,17 @@ class Rest():
                 restResponse = requests.put(
                     url     = resturl,
                     json    = data,
-                    headers = headers
+                    headers = headers,
+                    verify  = verify,
+                    timeout = timeout
                 )
             else:
                 restResponse = requests.put(
                     url     = resturl,
                     data    = data,
-                    headers = headers
+                    headers = headers,
+                    verify  = verify,
+                    timeout = timeout
                 )
         except Exception as ex:
             errmsg = str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)\
@@ -201,14 +233,20 @@ class Rest():
     def delete(
             self,
             headers = None,
-            ext = None
+            ext = None,
+            # By default verify certificate
+            verify  = True,
+            # By default wait forever?
+            timeout = TIMEOUT_DEFAULT,
     ):
         resturl = self.url
         if ext is not None:
             resturl = self.url + '/' + ext
 
-        lg.Log.debugdebug(str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                          + ': Rest PUT Request [' + self.url + ']')
+        lg.Log.debug(
+            str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+            + ': Rest PUT Request [' + self.url + ']'
+        )
 
         # Return status
         restResponse = False
@@ -217,7 +255,9 @@ class Rest():
         try:
             restResponse = requests.delete(
                 url  = resturl,
-                headers = headers
+                headers = headers,
+                verify  = verify,
+                timeout = timeout
             )
         except Exception as ex:
             errmsg = str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)\
@@ -240,4 +280,14 @@ class Rest():
 
 
 if __name__ == '__main__':
-    exit(0)
+    lg.Log.DEBUG_PRINT_ALL_TO_SCREEN = True
+    lg.Log.LOGLEVEL = lg.Log.LOG_LEVEL_DEBUG_2
+
+    rest_sec = Rest(url='http://dummy.restapiexample.com/api/v1/employees')
+    rest_response = rest_sec.get(
+        headers = {
+            'Accept': 'application/json',
+            'User-Agent': 'request'
+        }
+    )
+    print(rest_response)
