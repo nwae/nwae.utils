@@ -18,11 +18,11 @@ class ObjectPersistence:
             lock_file_path
     ):
         self.default_obj = default_obj
-        self.obj = default_obj
         self.obj_file_path = obj_file_path
         self.lock_file_path = lock_file_path
 
         # Read once from storage
+        self.obj = None
         self.obj = self.read_persistent_object()
         lg.Log.info(
             str(__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
@@ -77,7 +77,14 @@ class ObjectPersistence:
                 + '" of type "' + str(type(self.obj)) + ', different with default obj type "'
                 + str(type(self.default_obj)) + '". Setting obj back to default obj.'
             )
-            self.obj = self.default_obj
+            try:
+                self.obj = self.default_obj.copy()
+            except Exception as ex_copy:
+                errmsg = str(__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
+                         + ': Failed to assign copy of default object: ' + str(ex_copy)\
+                         + '. This will potentially modify default object!'
+                lg.Log.error(errmsg)
+                self.obj = self.default_obj
         return self.obj
 
     @staticmethod
@@ -185,19 +192,24 @@ if __name__ == '__main__':
     obj_file_path = '/tmp/pickleObj.b'
     lock_file_path = '/tmp/.lock.pickleObj.b'
 
-    obj = {
-        'a': [1,2,3],
-        'b': 'test object'
-    }
+    objects = [
+        {
+            'a': [1,2,3],
+            'b': 'test object'
+        },
+        [],
+        {}
+    ]
 
-    ObjectPersistence.serialize_object_to_file(
-        obj = obj,
-        obj_file_path = obj_file_path,
-        lock_file_path = lock_file_path
-    )
+    for obj in objects:
+        ObjectPersistence.serialize_object_to_file(
+            obj = obj,
+            obj_file_path = obj_file_path,
+            lock_file_path = lock_file_path
+        )
 
-    b = ObjectPersistence.deserialize_object_from_file(
-        obj_file_path = obj_file_path,
-        lock_file_path = lock_file_path
-    )
-    print(str(b))
+        b = ObjectPersistence.deserialize_object_from_file(
+            obj_file_path = obj_file_path,
+            lock_file_path = lock_file_path
+        )
+        print(str(b))
