@@ -58,57 +58,59 @@ class LockFile:
         # At this point there could be many competing workers/threads waiting for it.
         # And since they can be cross process, means no point using any mutex locks.
         #
-        try:
-            wait_time_per_round = 0.5
-            lg.Log.debugdebug(
-                str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                + ': Wait time per round ' + str(round(wait_time_per_round,2))
-            )
-            random_val = wait_time_per_round / 10
-            total_wait_time = 0
-            round_count = 0
-            while True:
-                round_count += 1
-                if total_wait_time > max_wait_time_secs:
-                    lg.Log.critical(
-                        str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                        + ': Round ' + str(round_count)
-                        + '. Failed to get lock ~' + str(total_wait_time) + 's. Other competing process won lock to file "'
-                        + str(lock_file_path) + '"! Very likely process is being bombarded with too many requests.'
-                    )
-                    return False
-                #
-                # If many processes competing to obtain lock, make sure to check for file existence again
-                # once a mutex is acquired. It is possible some other competing processes have obtained it.
-                # So we wait a bit longer.
-                #
-                # Rough estimation without the random value
-                total_wait_time += wait_time_per_round
+        wait_time_per_round = 0.5
+        lg.Log.debugdebug(
+            str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
+            + ': Wait time per round ' + str(round(wait_time_per_round,2))
+        )
+        random_val = wait_time_per_round / 10
+        total_wait_time = 0
+        round_count = 0
+        while True:
+            round_count += 1
+            if total_wait_time > max_wait_time_secs:
+                lg.Log.critical(
+                    str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                    + ': Round ' + str(round_count)
+                    + '. Failed to get lock ~' + str(total_wait_time) + 's. Other competing process won lock to file "'
+                    + str(lock_file_path) + '"! Very likely process is being bombarded with too many requests.'
+                )
+                return False
 
-                if not LockFile.__wait_for_lock_file(
-                        lock_file_path = lock_file_path,
-                        max_wait_time_secs = random.uniform(
-                            wait_time_per_round-random_val,
-                            wait_time_per_round+random_val
-                        )
-                ):
-                    lg.Log.important(
-                        str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                        + ': Round ' + str(round_count) + ' fail to get lock to file "'
-                        + str(lock_file_path) + '".'
-                    )
-                    continue
-                else:
-                    lg.Log.debugdebug('Lock file "' + str(lock_file_path) + '" ok, no longer found.')
+            # Rough estimation without the random value
+            total_wait_time += wait_time_per_round
 
+            if not LockFile.__wait_for_lock_file(
+                    lock_file_path = lock_file_path,
+                    max_wait_time_secs = random.uniform(
+                        wait_time_per_round-random_val,
+                        wait_time_per_round+random_val
+                    )
+            ):
+                lg.Log.important(
+                    str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                    + ': Round ' + str(round_count) + ' fail to get lock to file "'
+                    + str(lock_file_path) + '".'
+                )
+                continue
+            else:
+                lg.Log.debugdebug('Lock file "' + str(lock_file_path) + '" ok, no longer found.')
+
+            try:
                 f = open(file=lock_file_path, mode='w')
                 timestamp = dt.datetime.now()
                 random_string = uuid.uuid4().hex + ' ' + str(timestamp) + ' ' + str(threading.get_ident())
                 f.write(random_string)
                 f.close()
 
+                #
+                # If many processes competing to obtain lock, make sure to check for file existence again
+                # once file lock is acquired.
+                # It is possible some other competing processes have obtained it.
+                # And thus we do a verification check below
                 # Read back, as there might be another worker/thread that obtained the lock and wrote
                 # something to it also.
+                #
                 t.sleep(0.01+random.uniform(-0.005,+0.005))
                 f = open(file=lock_file_path, mode='r')
                 read_back_string = f.read()
@@ -125,12 +127,12 @@ class LockFile:
                         + str(random_string) + '", got instead "' + str(read_back_string) + '".'
                     )
                     continue
-        except Exception as ex:
-            lg.Log.critical(
-                str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                + ': Unable to create lock file "' + str(lock_file_path) + '": ' + str(ex)
-            )
-            return False
+            except Exception as ex_file:
+                lg.Log.error(
+                    str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                    + ': Error lock file "' + str(lock_file_path) + '": ' + str(ex_file)
+                )
+        return False
 
     @staticmethod
     def release_file_cache_lock(
