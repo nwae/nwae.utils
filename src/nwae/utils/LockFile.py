@@ -10,12 +10,18 @@ import uuid
 
 
 #
-# From trial and error, for 100 simultaneous threads, each counting to 50,
-# waiting for max 10 secs, the probability of failed lock is about 100/5000
+# THEORY OF CLASH
+#
+# When N workers/processes/threads simultaneously access a resource, with
+# max wait time W, there is a probability of a worker never getting to access
+# this resource within this time W.
 # If the wait time W is doubled, the probability falls by half.
 # If the number of threads N are doubled, the probability increases twice.
-# Thus P(fail_lock) = k * N / W
-# The constant k depends on the machine, on a Mac Book Air, k = 1/200 = 0.005
+# Thus
+#
+#      P(fail_to_obtain_lock) = k * N / W
+#
+# The constant k depends on the machine, on a Mac Book Air, k = 1/250 = 0.005
 #
 class LockFile:
 
@@ -23,6 +29,9 @@ class LockFile:
     N_RACE_CONDITIONS_FILE = 0
 
     LOCKS_DICT = {}
+
+    # For Mac Book Air
+    K_CONSTANT_MAC_BOOK_AIR = 1 / 250
 
     def __init__(self):
         return
@@ -273,9 +282,8 @@ class LoadTestLockFile:
         print('********* TOTAL RACE CONDITIONS MEMORY = ' + str(LockFile.N_RACE_CONDITIONS_MEMORY))
         print('********* TOTAL RACE CONDITIONS FILE = ' + str(LockFile.N_RACE_CONDITIONS_FILE))
         print('********* PROBABILITY OF FAILED LOCKS = ' + str(round(LoadTestLockFile.N_FAILED_LOCK / n_sum, 2)))
-        # For Mac Book Air
-        k = 1/200
-        print('********* THEO PROBABILITY OF FAILED LOCKS = ' + str(round(k * self.n_threads / self.max_wait_time_secs, 2)))
+        print('********* THEO PROBABILITY OF FAILED LOCKS = '
+              + str(round(LockFile.K_CONSTANT_MAC_BOOK_AIR * self.n_threads / self.max_wait_time_secs, 2)))
 
 
 if __name__ == '__main__':
@@ -291,9 +299,9 @@ if __name__ == '__main__':
         # If the number of threads N are doubled, the probability increases twice.
         # Thus P(fail_lock) = k * N / W
         # The constant k depends on the machine, on a Mac Book Air, k = 1/200 = 0.005
-        max_wait_time_secs = 2,
+        max_wait_time_secs = 60,
         n_threads = 200,
-        # The probability of failed lock does not depend on this
+        # The probability of failed lock does not depend on this, this is just sampling
         count_to = 20
     ).run()
 
