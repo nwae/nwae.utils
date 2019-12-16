@@ -275,7 +275,7 @@ class LoadTestLockFile:
         print('********* PROBABILITY OF FAILED LOCKS = ' + str(round(LoadTestLockFile.N_FAILED_LOCK / n_sum, 2)))
         # For Mac Book Air
         k = 1/200
-        print('********* THEO PROBABILITY OF FAILED LOCKS = ' + str(round(k * len(self.n_threads) / self.max_wait_time_secs, 2)))
+        print('********* THEO PROBABILITY OF FAILED LOCKS = ' + str(round(k * self.n_threads / self.max_wait_time_secs, 2)))
 
 
 if __name__ == '__main__':
