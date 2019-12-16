@@ -220,9 +220,11 @@ class LoadTestLockFile:
                 )
         print('***** THREAD ' + str(threading.get_ident()) + ' DONE ' + str(count) + ' COUNTS')
 
-    def __init__(self, lock_file_path, max_wait_time_secs):
+    def __init__(self, lock_file_path, max_wait_time_secs, n_threads, count_to):
         self.lock_file_path = lock_file_path
         self.max_wait_time_secs = max_wait_time_secs
+        self.n_threads = n_threads
+        self.count_to = count_to
         return
 
     class CountThread(threading.Thread):
@@ -241,18 +243,15 @@ class LoadTestLockFile:
 
     def run(self):
         threads_list = []
-        n = 10
         n_sum = 0
-        n_threads = 100
-        for i in range(n_threads):
-            count = 50
-            n_sum += count
+        for i in range(self.n_threads):
+            n_sum += self.count_to
             threads_list.append(LoadTestLockFile.CountThread(
-                count=count,
+                count = self.count_to,
                 lock_file_path = self.lock_file_path,
                 max_wait_time_secs = self.max_wait_time_secs
             ))
-            print(str(i) + '. New thread "' + str(threads_list[i].getName()) + '" count ' + str(count))
+            print(str(i) + '. New thread "' + str(threads_list[i].getName()) + '" count ' + str(self.count_to))
         for i in range(len(threads_list)):
             thr = threads_list[i]
             print('Starting thread ' + str(i))
@@ -275,7 +274,11 @@ if __name__ == '__main__':
     lg.Log.LOGLEVEL = lg.Log.LOG_LEVEL_WARNING
     LoadTestLockFile(
         lock_file_path = lock_file_path,
-        max_wait_time_secs = 10
+        # From trial and error, for 100 simultaneous threads, each counting to 50,
+        # waiting for max 10 secs, the probability of failed lock is about 100/5000
+        max_wait_time_secs = 10,
+        n_threads = 100,
+        count_to = 50
     ).run()
 
     exit(0)
