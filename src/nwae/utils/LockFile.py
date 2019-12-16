@@ -6,11 +6,12 @@ import nwae.utils.Log as lg
 from inspect import currentframe, getframeinfo
 import threading
 import random
+import uuid
 
 
 class LockFile:
 
-    __lock_mutex = threading.Lock()
+    N_RACE_CONDITIONS = 0
 
     def __init__(self):
         return
@@ -18,7 +19,7 @@ class LockFile:
     @staticmethod
     def __wait_for_lock_file(
             lock_file_path,
-            max_wait_time_secs = 5.0
+            max_wait_time_secs
     ):
         total_sleep_time = 0.0
 
@@ -32,9 +33,9 @@ class LockFile:
             t.sleep(sleep_time)
             total_sleep_time += sleep_time
             if total_sleep_time > max_wait_time_secs:
-                lg.Log.critical(
+                lg.Log.warning(
                     str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                    + ': Cannot get file lock "' + str(lock_file_path) + '" after '
+                    + ': Wait fail for file lock "' + str(lock_file_path) + '" after '
                     + str(round(total_sleep_time,2)) + ' secs!!'
                 )
                 return False
@@ -43,7 +44,7 @@ class LockFile:
     @staticmethod
     def acquire_file_cache_lock(
             lock_file_path,
-            max_wait_time_secs = 5.0,
+            max_wait_time_secs = 30.0,
             verbose = 0
     ):
         if lock_file_path is None:
@@ -53,48 +54,83 @@ class LockFile:
             )
             return False
 
-        if not LockFile.__wait_for_lock_file(
-            lock_file_path = lock_file_path,
-            max_wait_time_secs = max_wait_time_secs
-        ):
-            return False
-
         #
-        # At this point there could be many competing processes waiting for it, so we
-        # must do proper mutex locking.
+        # At this point there could be many competing workers/threads waiting for it.
+        # And since they can be cross process, means no point using any mutex locks.
         #
         try:
-            LockFile.__lock_mutex.acquire()
+            wait_time_per_round = 0.5
+            lg.Log.debugdebug(
+                str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                + ': Wait time per round ' + str(round(wait_time_per_round,2))
+            )
+            random_val = wait_time_per_round / 10
+            total_wait_time = 0
+            round_count = 0
+            while True:
+                round_count += 1
+                if total_wait_time > max_wait_time_secs:
+                    lg.Log.critical(
+                        str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                        + ': Round ' + str(round_count)
+                        + '. Failed to get lock ~' + str(total_wait_time) + 's. Other competing process won lock to file "'
+                        + str(lock_file_path) + '"! Very likely process is being bombarded with too many requests.'
+                    )
+                    return False
+                #
+                # If many processes competing to obtain lock, make sure to check for file existence again
+                # once a mutex is acquired. It is possible some other competing processes have obtained it.
+                # So we wait a bit longer.
+                #
+                # Rough estimation without the random value
+                total_wait_time += wait_time_per_round
 
-            #
-            # If many processes competing to obtain lock, make sure to check for file existence again
-            # once a mutex is acquired. It is possible some other competing processes have obtained it.
-            # So we wait a bit longer.
-            #
-            if not LockFile.__wait_for_lock_file(
-                    lock_file_path = lock_file_path,
-                    max_wait_time_secs = random.uniform(0.8,1.2)
-            ):
-                lg.Log.critical(
-                    str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                    + ': Failed to get lock. After obtaining mutex, other competing process won lock to file "'
-                    + str(lock_file_path) + '"! Very likely process is being bombarded with too many requests.'
-                )
-                return False
+                if not LockFile.__wait_for_lock_file(
+                        lock_file_path = lock_file_path,
+                        max_wait_time_secs = random.uniform(
+                            wait_time_per_round-random_val,
+                            wait_time_per_round+random_val
+                        )
+                ):
+                    lg.Log.important(
+                        str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                        + ': Round ' + str(round_count) + ' fail to get lock to file "'
+                        + str(lock_file_path) + '".'
+                    )
+                    continue
+                else:
+                    lg.Log.debugdebug('Lock file "' + str(lock_file_path) + '" ok, no longer found.')
 
-            f = open(file=lock_file_path, mode='w')
-            timestamp = dt.datetime.fromtimestamp(t.time()).strftime('%Y-%m-%d %H:%M:%S')
-            f.write(timestamp + '\n')
-            f.close()
-            return True
+                f = open(file=lock_file_path, mode='w')
+                timestamp = dt.datetime.now()
+                random_string = uuid.uuid4().hex + ' ' + str(timestamp) + ' ' + str(threading.get_ident())
+                f.write(random_string)
+                f.close()
+
+                # Read back, as there might be another worker/thread that obtained the lock and wrote
+                # something to it also.
+                t.sleep(0.01+random.uniform(-0.005,+0.005))
+                f = open(file=lock_file_path, mode='r')
+                read_back_string = f.read()
+                f.close()
+                if read_back_string == random_string:
+                    lg.Log.debugdebug('Read back random string "' + str(read_back_string) + '" ok')
+                    return True
+                else:
+                    LockFile.N_RACE_CONDITIONS += 1
+                    lg.Log.warning(
+                        str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                        + ': Race condition ' + str(LockFile.N_RACE_CONDITIONS) + '! Round ' + str(round_count)
+                        + '. Failed verify lock file with random string "'
+                        + str(random_string) + '", got instead "' + str(read_back_string) + '".'
+                    )
+                    continue
         except Exception as ex:
             lg.Log.critical(
                 str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
                 + ': Unable to create lock file "' + str(lock_file_path) + '": ' + str(ex)
             )
             return False
-        finally:
-            LockFile.__lock_mutex.release()
 
     @staticmethod
     def release_file_cache_lock(
@@ -135,20 +171,87 @@ class LockFile:
                 )
                 return False
 
+class LoadTestLockFile:
+    X_SHARED = 0
+    N_FAILED_LOCK = 0
+
+    @staticmethod
+    def incre_x(count, lock_file_path):
+        for i in range(count):
+            if LockFile.acquire_file_cache_lock(lock_file_path=lock_file_path, max_wait_time_secs=500):
+                LoadTestLockFile.X_SHARED += 1
+                print(str(LoadTestLockFile.X_SHARED) + ' Thread ' + str(threading.get_ident()))
+                LockFile.release_file_cache_lock(lock_file_path=lock_file_path)
+            else:
+                LoadTestLockFile.N_FAILED_LOCK += 1
+                print(
+                    '***** ' + str(LoadTestLockFile.N_FAILED_LOCK)
+                    + '. Failed to obtain lock: ' + str(LoadTestLockFile.X_SHARED)
+                )
+        print('***** THREAD ' + str(threading.get_ident()) + ' DONE ' + str(count) + ' COUNTS')
+
+    def __init__(self, lock_file_path):
+        self.lock_file_path = lock_file_path
+        return
+
+    class CountThread(threading.Thread):
+        def __init__(self, count, lock_file_path):
+            super(LoadTestLockFile.CountThread, self).__init__()
+            self.count = count
+            self.lock_file_path = lock_file_path
+
+        def run(self):
+            LoadTestLockFile.incre_x(
+                count = self.count,
+                lock_file_path = self.lock_file_path
+            )
+
+    def run(self):
+        threads_list = []
+        n = 10
+        n_sum = 0
+        n_threads = 100
+        for i in range(n_threads):
+            count = 50
+            n_sum += count
+            threads_list.append(LoadTestLockFile.CountThread(count=count, lock_file_path=self.lock_file_path))
+            print(str(i) + '. New thread "' + str(threads_list[i].getName()) + '" count ' + str(count))
+        for i in range(len(threads_list)):
+            thr = threads_list[i]
+            print('Starting thread ' + str(i))
+            thr.start()
+
+        for thr in threads_list:
+            thr.join()
+
+        print('********* TOTAL SHOULD GET ' + str(n_sum) + '. Failed Counts = ' + str(LoadTestLockFile.N_FAILED_LOCK))
+        print('********* TOTAL COUNT SHOULD BE = ' + str(n_sum - LoadTestLockFile.N_FAILED_LOCK))
+        print('********* TOTAL RACE CONDITIONS = ' + str(LockFile.N_RACE_CONDITIONS))
+        print('********* FAILED LOCKS SHOULD BE 0')
+
 
 if __name__ == '__main__':
+    lock_file_path = '/tmp/lockfile.test.lock'
+    LockFile.release_file_cache_lock(lock_file_path=lock_file_path)
+
+    lg.Log.LOGLEVEL = lg.Log.LOG_LEVEL_WARNING
+    LoadTestLockFile(lock_file_path=lock_file_path).run()
+
+    exit(0)
+
+    lg.Log.LOGLEVEL = lg.Log.LOG_LEVEL_DEBUG_2
     res = LockFile.acquire_file_cache_lock(
-        lock_file_path = '/tmp/lockfile.test.lock',
-        max_wait_time_secs = 2.2
+        lock_file_path = lock_file_path,
+        max_wait_time_secs = 1.2
     )
     print('Lock obtained = ' + str(res))
     res = LockFile.release_file_cache_lock(
-        lock_file_path = '/tmp/lockfile.test.lock'
+        lock_file_path = lock_file_path
     )
     print('Lock released = ' + str(res))
 
     res = LockFile.acquire_file_cache_lock(
-        lock_file_path = '/tmp/lockfile.test.lock',
+        lock_file_path = lock_file_path,
         max_wait_time_secs = 2.2
     )
     print('Lock obtained = ' + str(res))
