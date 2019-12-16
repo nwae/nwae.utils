@@ -70,6 +70,7 @@ class ObjectPersistence:
                 + ': None object from file "' + str(self.obj_file_path)
                 + '", lock file "' + str(self.lock_file_path) + '". Returning memory object.'
             )
+
         if type(self.default_obj) != type(self.obj):
             lg.Log.warning(
                 str(__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
@@ -85,6 +86,7 @@ class ObjectPersistence:
                          + '. This will potentially modify default object!'
                 lg.Log.error(errmsg)
                 self.obj = self.default_obj
+
         return self.obj
 
     @staticmethod
@@ -95,10 +97,15 @@ class ObjectPersistence:
             verbose = 0
     ):
         if lock_file_path is not None:
-            lockfile.LockFile.acquire_file_cache_lock(
-                lock_file_path = lock_file_path,
-                verbose        = verbose
-            )
+            if not lockfile.LockFile.acquire_file_cache_lock(
+                    lock_file_path = lock_file_path
+            ):
+                lg.Log.critical(
+                    str(ObjectPersistence.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                    + ': Could not serialize to "' + str(obj_file_path) + '", could not obtain lock to "'
+                    + str(lock_file_path) + '".'
+                )
+                return False
 
         try:
             if obj_file_path is None:
@@ -153,10 +160,15 @@ class ObjectPersistence:
             return None
 
         if lock_file_path is not None:
-            lockfile.LockFile.acquire_file_cache_lock(
-                lock_file_path=lock_file_path,
-                verbose=verbose
-            )
+            if not lockfile.LockFile.acquire_file_cache_lock(
+                lock_file_path = lock_file_path
+            ):
+                lg.Log.critical(
+                    str(ObjectPersistence.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                    + ': Could not deserialize from "' + str(obj_file_path) + '", could not obtain lock to "'
+                    + str(lock_file_path) + '".'
+                )
+                return None
 
         try:
             fhandle = open(
@@ -183,8 +195,7 @@ class ObjectPersistence:
         finally:
             if lock_file_path is not None:
                 lockfile.LockFile.release_file_cache_lock(
-                    lock_file_path = lock_file_path,
-                    verbose        = verbose
+                    lock_file_path = lock_file_path
                 )
 
 
@@ -192,13 +203,18 @@ if __name__ == '__main__':
     obj_file_path = '/tmp/pickleObj.b'
     lock_file_path = '/tmp/.lock.pickleObj.b'
 
+    lg.Log.LOGLEVEL = lg.Log.LOG_LEVEL_INFO
+
     objects = [
         {
             'a': [1,2,3],
             'b': 'test object'
         },
+        # Empty objects
         [],
-        {}
+        {},
+        88,
+        'eighty eight'
     ]
 
     for obj in objects:
