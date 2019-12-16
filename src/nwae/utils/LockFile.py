@@ -9,6 +9,14 @@ import random
 import uuid
 
 
+#
+# From trial and error, for 100 simultaneous threads, each counting to 50,
+# waiting for max 10 secs, the probability of failed lock is about 100/5000
+# If the wait time W is doubled, the probability falls by half.
+# If the number of threads N are doubled, the probability increases twice.
+# Thus P(fail_lock) = k * N / W
+# The constant k depends on the machine, on a Mac Book Air, k = 1/200 = 0.005
+#
 class LockFile:
 
     N_RACE_CONDITIONS_MEMORY = 0
@@ -70,8 +78,7 @@ class LockFile:
         total_wait_time = 0
         round_count = 0
         while True:
-            round_count += 1
-            if total_wait_time > max_wait_time_secs:
+            if total_wait_time >= max_wait_time_secs:
                 lg.Log.critical(
                     str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
                     + ': Round ' + str(round_count)
@@ -79,6 +86,7 @@ class LockFile:
                     + str(lock_file_path) + '"! Very likely process is being bombarded with too many requests.'
                 )
                 return False
+            round_count += 1
 
             # Rough estimation without the random value
             total_wait_time += wait_time_per_round
@@ -264,7 +272,10 @@ class LoadTestLockFile:
         print('********* TOTAL COUNT SHOULD BE = ' + str(n_sum - LoadTestLockFile.N_FAILED_LOCK))
         print('********* TOTAL RACE CONDITIONS MEMORY = ' + str(LockFile.N_RACE_CONDITIONS_MEMORY))
         print('********* TOTAL RACE CONDITIONS FILE = ' + str(LockFile.N_RACE_CONDITIONS_FILE))
-        print('********* FAILED LOCKS SHOULD BE 0')
+        print('********* PROBABILITY OF FAILED LOCKS = ' + str(round(LoadTestLockFile.N_FAILED_LOCK / n_sum, 2)))
+        # For Mac Book Air
+        k = 1/200
+        print('********* THEO PROBABILITY OF FAILED LOCKS = ' + str(round(k * len(self.n_threads) / self.max_wait_time_secs, 2)))
 
 
 if __name__ == '__main__':
@@ -276,9 +287,14 @@ if __name__ == '__main__':
         lock_file_path = lock_file_path,
         # From trial and error, for 100 simultaneous threads, each counting to 50,
         # waiting for max 10 secs, the probability of failed lock is about 100/5000
-        max_wait_time_secs = 10,
-        n_threads = 100,
-        count_to = 50
+        # If the wait time W is doubled, the probability falls by half.
+        # If the number of threads N are doubled, the probability increases twice.
+        # Thus P(fail_lock) = k * N / W
+        # The constant k depends on the machine, on a Mac Book Air, k = 1/200 = 0.005
+        max_wait_time_secs = 2,
+        n_threads = 200,
+        # The probability of failed lock does not depend on this
+        count_to = 20
     ).run()
 
     exit(0)
