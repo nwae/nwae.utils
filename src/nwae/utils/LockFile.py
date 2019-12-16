@@ -11,7 +11,10 @@ import uuid
 
 class LockFile:
 
-    N_RACE_CONDITIONS = 0
+    N_RACE_CONDITIONS_MEMORY = 0
+    N_RACE_CONDITIONS_FILE = 0
+
+    LOCKS_DICT = {}
 
     def __init__(self):
         return
@@ -96,12 +99,29 @@ class LockFile:
             else:
                 lg.Log.debugdebug('Lock file "' + str(lock_file_path) + '" ok, no longer found.')
 
+            #
+            # We use additional memory lock for race conditions
+            #
+            if lock_file_path in LockFile.LOCKS_DICT.keys():
+                LockFile.N_RACE_CONDITIONS_MEMORY += 1
+                lg.Log.warning(
+                    str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                    + ': Memory Race condition ' + str(LockFile.N_RACE_CONDITIONS_MEMORY)
+                    + '! Round ' + str(round_count)
+                    + '. Lock file "' + str(lock_file_path) + '" in memory lock.'
+                )
+                continue
+            else:
+                LockFile.LOCKS_DICT[lock_file_path] = 1
+
             try:
                 f = open(file=lock_file_path, mode='w')
                 timestamp = dt.datetime.now()
                 random_string = uuid.uuid4().hex + ' ' + str(timestamp) + ' ' + str(threading.get_ident())
                 f.write(random_string)
                 f.close()
+                # Should be 2 now
+                LockFile.LOCKS_DICT[lock_file_path] += 1
 
                 #
                 # If many processes competing to obtain lock, make sure to check for file existence again
@@ -112,17 +132,20 @@ class LockFile:
                 # something to it also.
                 #
                 t.sleep(0.01+random.uniform(-0.005,+0.005))
+                # Should be 3 now
+                LockFile.LOCKS_DICT[lock_file_path] += 1
                 f = open(file=lock_file_path, mode='r')
                 read_back_string = f.read()
                 f.close()
-                if read_back_string == random_string:
-                    lg.Log.debugdebug('Read back random string "' + str(read_back_string) + '" ok')
+                if (read_back_string == random_string) and (LockFile.LOCKS_DICT[lock_file_path] == 3):
+                    lg.Log.debugdebug('Read back random string "' + str(read_back_string) + '" ok. Memory counter ok.')
                     return True
                 else:
-                    LockFile.N_RACE_CONDITIONS += 1
+                    LockFile.N_RACE_CONDITIONS_FILE += 1
                     lg.Log.warning(
                         str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                        + ': Race condition ' + str(LockFile.N_RACE_CONDITIONS) + '! Round ' + str(round_count)
+                        + ': File Race condition ' + str(LockFile.N_RACE_CONDITIONS_FILE)
+                        + '! Round ' + str(round_count)
                         + '. Failed verify lock file with random string "'
                         + str(random_string) + '", got instead "' + str(read_back_string) + '".'
                     )
@@ -130,8 +153,13 @@ class LockFile:
             except Exception as ex_file:
                 lg.Log.error(
                     str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                    + ': Error lock file "' + str(lock_file_path) + '": ' + str(ex_file)
+                    + ': Round ' + str(round_count) + '. Error lock file "' + str(lock_file_path)
+                    + '": ' + str(ex_file)
                 )
+                continue
+            finally:
+                del LockFile.LOCKS_DICT[lock_file_path]
+
         return False
 
     @staticmethod
@@ -178,9 +206,9 @@ class LoadTestLockFile:
     N_FAILED_LOCK = 0
 
     @staticmethod
-    def incre_x(count, lock_file_path):
+    def incre_x(count, lock_file_path, max_wait_time_secs):
         for i in range(count):
-            if LockFile.acquire_file_cache_lock(lock_file_path=lock_file_path, max_wait_time_secs=500):
+            if LockFile.acquire_file_cache_lock(lock_file_path=lock_file_path, max_wait_time_secs=max_wait_time_secs):
                 LoadTestLockFile.X_SHARED += 1
                 print(str(LoadTestLockFile.X_SHARED) + ' Thread ' + str(threading.get_ident()))
                 LockFile.release_file_cache_lock(lock_file_path=lock_file_path)
@@ -192,20 +220,23 @@ class LoadTestLockFile:
                 )
         print('***** THREAD ' + str(threading.get_ident()) + ' DONE ' + str(count) + ' COUNTS')
 
-    def __init__(self, lock_file_path):
+    def __init__(self, lock_file_path, max_wait_time_secs):
         self.lock_file_path = lock_file_path
+        self.max_wait_time_secs = max_wait_time_secs
         return
 
     class CountThread(threading.Thread):
-        def __init__(self, count, lock_file_path):
+        def __init__(self, count, lock_file_path, max_wait_time_secs):
             super(LoadTestLockFile.CountThread, self).__init__()
             self.count = count
             self.lock_file_path = lock_file_path
+            self.max_wait_time_secs = max_wait_time_secs
 
         def run(self):
             LoadTestLockFile.incre_x(
                 count = self.count,
-                lock_file_path = self.lock_file_path
+                lock_file_path = self.lock_file_path,
+                max_wait_time_secs = self.max_wait_time_secs
             )
 
     def run(self):
@@ -216,7 +247,11 @@ class LoadTestLockFile:
         for i in range(n_threads):
             count = 50
             n_sum += count
-            threads_list.append(LoadTestLockFile.CountThread(count=count, lock_file_path=self.lock_file_path))
+            threads_list.append(LoadTestLockFile.CountThread(
+                count=count,
+                lock_file_path = self.lock_file_path,
+                max_wait_time_secs = self.max_wait_time_secs
+            ))
             print(str(i) + '. New thread "' + str(threads_list[i].getName()) + '" count ' + str(count))
         for i in range(len(threads_list)):
             thr = threads_list[i]
@@ -228,7 +263,8 @@ class LoadTestLockFile:
 
         print('********* TOTAL SHOULD GET ' + str(n_sum) + '. Failed Counts = ' + str(LoadTestLockFile.N_FAILED_LOCK))
         print('********* TOTAL COUNT SHOULD BE = ' + str(n_sum - LoadTestLockFile.N_FAILED_LOCK))
-        print('********* TOTAL RACE CONDITIONS = ' + str(LockFile.N_RACE_CONDITIONS))
+        print('********* TOTAL RACE CONDITIONS MEMORY = ' + str(LockFile.N_RACE_CONDITIONS_MEMORY))
+        print('********* TOTAL RACE CONDITIONS FILE = ' + str(LockFile.N_RACE_CONDITIONS_FILE))
         print('********* FAILED LOCKS SHOULD BE 0')
 
 
@@ -237,7 +273,10 @@ if __name__ == '__main__':
     LockFile.release_file_cache_lock(lock_file_path=lock_file_path)
 
     lg.Log.LOGLEVEL = lg.Log.LOG_LEVEL_WARNING
-    LoadTestLockFile(lock_file_path=lock_file_path).run()
+    LoadTestLockFile(
+        lock_file_path = lock_file_path,
+        max_wait_time_secs = 10
+    ).run()
 
     exit(0)
 
