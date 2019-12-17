@@ -11,7 +11,11 @@ import uuid
 
 #
 # THEORY OF CLASH
-#
+#   Model:
+#     Let the probability of clash be c for 2 random parties accessing a time
+#     slot of t.
+#     Thus if there are n parties, the clash probability P(n) of n clashes
+#     is just a Bernoulli.
 # When N workers/processes/threads simultaneously access a resource, with
 # max wait time W, there is a probability of a worker never getting to access
 # this resource within this time W.
@@ -64,7 +68,9 @@ class LockFile:
     @staticmethod
     def acquire_file_cache_lock(
             lock_file_path,
-            max_wait_time_secs = 30.0,
+            # At 10s max wait time, this means the probability of not obtaining lock if
+            # 10 processes simultaneously wants to access it is roughly (1/250)*10/10 = 0.4%
+            max_wait_time_secs = 10.0,
             verbose = 0
     ):
         if lock_file_path is None:
@@ -118,7 +124,8 @@ class LockFile:
 
             #
             # We use additional memory lock for race conditions
-            #
+            # But mutex/memory locks only good enough for threads in the same process, not
+            # for cross workers.
             if lock_file_path in LockFile.LOCKS_DICT.keys():
                 LockFile.N_RACE_CONDITIONS_MEMORY += 1
                 lg.Log.warning(
@@ -146,7 +153,7 @@ class LockFile:
                 # It is possible some other competing processes have obtained it.
                 # And thus we do a verification check below
                 # Read back, as there might be another worker/thread that obtained the lock and wrote
-                # something to it also.
+                # something to it also. This can handle cross process, unlike memory locks.
                 #
                 t.sleep(0.01+random.uniform(-0.005,+0.005))
                 # Should be 3 now
@@ -299,10 +306,10 @@ if __name__ == '__main__':
         # If the number of threads N are doubled, the probability increases twice.
         # Thus P(fail_lock) = k * N / W
         # The constant k depends on the machine, on a Mac Book Air, k = 1/200 = 0.005
-        max_wait_time_secs = 60,
-        n_threads = 200,
+        max_wait_time_secs = 8,
+        n_threads = 100,
         # The probability of failed lock does not depend on this, this is just sampling
-        count_to = 20
+        count_to = 10
     ).run()
 
     exit(0)
