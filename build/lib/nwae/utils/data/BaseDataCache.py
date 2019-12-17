@@ -112,6 +112,28 @@ class BaseDataCache(threading.Thread):
         return self.__is_db_cache_loaded
 
     #
+    # Only when we need to get all data from cache.
+    #
+    def wait_for_data_loading(
+            self,
+            timeout_secs = 5.0
+    ):
+        sleep_time = 0.2
+        total_time_sleep = 0.0
+        while not self.__is_db_cache_loaded:
+            if total_time_sleep >= timeout_secs:
+                lg.Log.warning(
+                    str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                    + ': Data cache "' + str(self.cache_identifier)
+                    + '" not ready after ' + str(total_time_sleep) + 's.'
+                )
+                return False
+            t.sleep(sleep_time)
+            total_time_sleep += sleep_time
+
+        return True
+
+    #
     # Updates data frame containing Table rows
     #
     def update_cache(
@@ -187,7 +209,20 @@ class BaseDataCache(threading.Thread):
         )
 
     def get_all_data_keys(self):
-        return self.__db_cache.keys()
+        return list(self.__db_cache.keys())
+
+    #
+    # Get only from cache
+    #
+    def get_all_data_cache(self):
+        all_data_from_cache = []
+        try:
+            self.__mutex_db_cache_df.acquire()
+            for key in self.__db_cache.keys():
+                all_data_from_cache.append(self.__db_cache[key].copy())
+            return all_data_from_cache
+        finally:
+            self.__mutex_db_cache_df.release()
 
     #
     # By default, return value is always a list if "table_column_name" is None
@@ -306,6 +341,9 @@ class BaseDataCache(threading.Thread):
 
         return value
 
+    #
+    # Get either from cache or DB (if cache expired or not found in cache)
+    #
     def get(
             self,
             table_id,
@@ -318,6 +356,9 @@ class BaseDataCache(threading.Thread):
             use_only_cache_data = use_only_cache_data
         )
 
+    #
+    # Get from data source / DB
+    #
     def get_all_data(self):
         raise Exception(
             str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno) \
