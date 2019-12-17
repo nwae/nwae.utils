@@ -16,11 +16,15 @@ import uuid
 #     slot of t.
 #     Thus if there are n parties, the clash probability P(n) of n clashes
 #     is just a Bernoulli.
+#
+# But for simplicity, we can use the following:
 # When N workers/processes/threads simultaneously access a resource, with
 # max wait time W, there is a probability of a worker never getting to access
 # this resource within this time W.
-# If the wait time W is doubled, the probability falls by half.
-# If the number of threads N are doubled, the probability increases twice.
+# If the wait time W is doubled, the probability falls by half (not mathematically
+# correct actually).
+# If the number of threads N are doubled, the probability increases twice (also
+# not mathematically correct).
 # Thus
 #
 #      P(fail_to_obtain_lock) = k * N / W
@@ -32,7 +36,9 @@ class LockFile:
     N_RACE_CONDITIONS_MEMORY = 0
     N_RACE_CONDITIONS_FILE = 0
 
-    LOCKS_DICT = {}
+    # Not much point using memory locks as we are trying to lock cross process
+    USE_LOCKS_MUTEX = False
+    __LOCKS_MUTEX = {}
 
     # For Mac Book Air
     K_CONSTANT_MAC_BOOK_AIR = 1 / 250
@@ -122,30 +128,25 @@ class LockFile:
             else:
                 lg.Log.debugdebug('Lock file "' + str(lock_file_path) + '" ok, no longer found.')
 
-            #
-            # We use additional memory lock for race conditions
-            # But mutex/memory locks only good enough for threads in the same process, not
-            # for cross workers.
-            if lock_file_path in LockFile.LOCKS_DICT.keys():
-                LockFile.N_RACE_CONDITIONS_MEMORY += 1
-                lg.Log.warning(
-                    str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                    + ': Memory Race condition ' + str(LockFile.N_RACE_CONDITIONS_MEMORY)
-                    + '! Round ' + str(round_count)
-                    + '. Lock file "' + str(lock_file_path) + '" in memory lock.'
-                )
-                continue
-            else:
-                LockFile.LOCKS_DICT[lock_file_path] = 1
-
             try:
+                #
+                # We use additional memory lock for race conditions
+                # But mutex/memory locks only good enough for threads in the same process, not
+                # for cross workers.
+                if LockFile.USE_LOCKS_MUTEX:
+                    if lock_file_path not in LockFile.__LOCKS_MUTEX:
+                        LockFile.__LOCKS_MUTEX[lock_file_path] = threading.Lock()
+                    LockFile.__LOCKS_MUTEX[lock_file_path].acquire()
+
                 f = open(file=lock_file_path, mode='w')
                 timestamp = dt.datetime.now()
                 random_string = uuid.uuid4().hex + ' ' + str(timestamp) + ' ' + str(threading.get_ident())
+                lg.Log.debug(
+                    str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                    + ': Write random string "' + str(random_string) + '" to lock file "' + str(lock_file_path) + '".'
+                )
                 f.write(random_string)
                 f.close()
-                # Should be 2 now
-                LockFile.LOCKS_DICT[lock_file_path] += 1
 
                 #
                 # If many processes competing to obtain lock, make sure to check for file existence again
@@ -156,12 +157,14 @@ class LockFile:
                 # something to it also. This can handle cross process, unlike memory locks.
                 #
                 t.sleep(0.01+random.uniform(-0.005,+0.005))
-                # Should be 3 now
-                LockFile.LOCKS_DICT[lock_file_path] += 1
+                lg.Log.debug(
+                    str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                    + ': Check random string "' + str(random_string) + '" from lock file "' + str(lock_file_path) + '".'
+                )
                 f = open(file=lock_file_path, mode='r')
                 read_back_string = f.read()
                 f.close()
-                if (read_back_string == random_string) and (LockFile.LOCKS_DICT[lock_file_path] == 3):
+                if (read_back_string == random_string):
                     lg.Log.debugdebug('Read back random string "' + str(read_back_string) + '" ok. Memory counter ok.')
                     return True
                 else:
@@ -182,7 +185,8 @@ class LockFile:
                 )
                 continue
             finally:
-                del LockFile.LOCKS_DICT[lock_file_path]
+                if LockFile.USE_LOCKS_MUTEX:
+                    LockFile.__LOCKS_MUTEX[lock_file_path].release()
 
         return False
 
@@ -288,16 +292,16 @@ class LoadTestLockFile:
         print('********* TOTAL COUNT SHOULD BE = ' + str(n_sum - LoadTestLockFile.N_FAILED_LOCK))
         print('********* TOTAL RACE CONDITIONS MEMORY = ' + str(LockFile.N_RACE_CONDITIONS_MEMORY))
         print('********* TOTAL RACE CONDITIONS FILE = ' + str(LockFile.N_RACE_CONDITIONS_FILE))
-        print('********* PROBABILITY OF FAILED LOCKS = ' + str(round(LoadTestLockFile.N_FAILED_LOCK / n_sum, 2)))
+        print('********* PROBABILITY OF FAILED LOCKS = ' + str(round(LoadTestLockFile.N_FAILED_LOCK / n_sum, 4)))
         print('********* THEO PROBABILITY OF FAILED LOCKS = '
-              + str(round(LockFile.K_CONSTANT_MAC_BOOK_AIR * self.n_threads / self.max_wait_time_secs, 2)))
+              + str(round(LockFile.K_CONSTANT_MAC_BOOK_AIR * self.n_threads / self.max_wait_time_secs, 4)))
 
 
 if __name__ == '__main__':
     lock_file_path = '/tmp/lockfile.test.lock'
     LockFile.release_file_cache_lock(lock_file_path=lock_file_path)
 
-    lg.Log.LOGLEVEL = lg.Log.LOG_LEVEL_WARNING
+    lg.Log.LOGLEVEL = lg.Log.LOG_LEVEL_INFO
     LoadTestLockFile(
         lock_file_path = lock_file_path,
         # From trial and error, for 100 simultaneous threads, each counting to 50,
@@ -306,7 +310,7 @@ if __name__ == '__main__':
         # If the number of threads N are doubled, the probability increases twice.
         # Thus P(fail_lock) = k * N / W
         # The constant k depends on the machine, on a Mac Book Air, k = 1/200 = 0.005
-        max_wait_time_secs = 8,
+        max_wait_time_secs = 10,
         n_threads = 100,
         # The probability of failed lock does not depend on this, this is just sampling
         count_to = 10
