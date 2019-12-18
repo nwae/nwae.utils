@@ -156,6 +156,15 @@ class LockFile:
                 # Read back, as there might be another worker/thread that obtained the lock and wrote
                 # something to it also. This can handle cross process, unlike memory locks.
                 #
+                # The time stats for writing a lock file (test function below) is the following in milliseconds:
+                #   {'average': 0.6627,
+                #   'quantile': {'0.001%': 0.3521, '1.0%': 0.369, '10.0%': 0.407,
+                #   '25.0%': 0.447, '50.0%': 0.523, '75.0%': 0.67, '90.0%': 0.898, '99.0%': 1.966,
+                #   '99.999%': 176.8324}}
+                # This means by sleeping between 5ms to 15ms is more than enough to cover at least 99% (1.966ms)
+                # of the cases.
+                # Meaning to say if there are race conditions, after the sleep, all competitors would have
+                # already written to the file, thus when reading back, only 1 competitor will see it correctly.
                 t.sleep(0.01+random.uniform(-0.005,+0.005))
                 lg.Log.debug(
                     str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
@@ -229,6 +238,42 @@ class LockFile:
                 )
                 return False
 
+    @staticmethod
+    def get_time_stats_to_create_lock_file(
+            lock_file_path,
+            n_rounds = 1000
+    ):
+        from nwae.utils.Profiling import Profiling
+
+        x = []
+
+        for i in range(n_rounds):
+            a = Profiling.start()
+            f = open(file=lock_file_path, mode='w')
+            timestamp = dt.datetime.now()
+            random_string = uuid.uuid4().hex + ' ' + str(timestamp) + ' ' + str(threading.get_ident())
+            lg.Log.debug(
+                str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                + ': Write random string "' + str(random_string) + '" to lock file "' + str(lock_file_path) + '".'
+            )
+            f.write(random_string)
+            f.close()
+            time_taken_millisecs = Profiling.get_time_dif_secs(start=a, stop=Profiling.stop(), decimals=6) * 1000
+            x.append(time_taken_millisecs)
+            print(str(i+1) + ': ' + str(time_taken_millisecs) + 'ms')
+
+        import numpy as np
+        x_np = np.array(x)
+        quantiles = {}
+        for q in [0.001, 1.0, 10.0, 25.0, 50.0, 75.0, 90.0, 99.0, 99.999]:
+            quantiles[str(q)+'%'] = round(np.quantile(x_np, q/100), 4)
+
+        return {
+            'average': round(x_np.mean(),4),
+            'quantile': quantiles
+        }
+
+
 class LoadTestLockFile:
     X_SHARED = 0
     N_FAILED_LOCK = 0
@@ -299,6 +344,11 @@ class LoadTestLockFile:
 
 if __name__ == '__main__':
     lock_file_path = '/tmp/lockfile.test.lock'
+
+    #print('Average time to create lock file = ')
+    #print(LockFile.get_time_stats_to_create_lock_file(lock_file_path=lock_file_path, n_rounds=10000))
+    #exit(0)
+
     LockFile.release_file_cache_lock(lock_file_path=lock_file_path)
 
     lg.Log.LOGLEVEL = lg.Log.LOG_LEVEL_INFO
