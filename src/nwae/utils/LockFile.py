@@ -161,11 +161,11 @@ class LockFile:
                 #   'quantile': {'0.001%': 0.3521, '1.0%': 0.369, '10.0%': 0.407,
                 #   '25.0%': 0.447, '50.0%': 0.523, '75.0%': 0.67, '90.0%': 0.898, '99.0%': 1.966,
                 #   '99.999%': 176.8324}}
-                # This means by sleeping between 5ms to 15ms is more than enough to cover at least 99% (1.966ms)
+                # This means by sleeping between 10ms to 15ms is more than enough to cover at least 99% (1.966ms)
                 # of the cases.
                 # Meaning to say if there are race conditions, after the sleep, all competitors would have
                 # already written to the file, thus when reading back, only 1 competitor will see it correctly.
-                t.sleep(0.01+random.uniform(-0.005,+0.005))
+                t.sleep(0.01+random.uniform(0.0, 0.005))
                 lg.Log.debug(
                     str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
                     + ': Check random string "' + str(random_string) + '" from lock file "' + str(lock_file_path) + '".'
