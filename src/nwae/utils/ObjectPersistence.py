@@ -14,6 +14,8 @@ class ObjectPersistence:
     ATOMIC_UPDATE_MODE_ADD = 'add'
     ATOMIC_UPDATE_MODE_REMOVE = 'remove'
 
+    DEFAULT_WAIT_TIME_LOCK_FILE = 30
+
     def __init__(
             self,
             default_obj,
@@ -34,92 +36,105 @@ class ObjectPersistence:
         )
         return
 
+    def __assign_default_object_copy(self):
+        try:
+            self.obj = self.default_obj.copy()
+        except Exception as ex_copy:
+            errmsg = str(__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
+                     + ': Failed to assign copy of default object: ' + str(ex_copy) \
+                     + '. This will potentially modify default object!'
+            lg.Log.error(errmsg)
+            self.obj = self.default_obj
+
     #
     # Makes sure that read/write happens in one go
     #
     def atomic_update(
             self,
-            # Will be appended to list type, or if container is dict type, will add a new item to dict
-            new_item,
+            # Only dict type supported, will add a new items to dict
+            new_items,
             # 'add' or 'remove'
-            mode
+            mode,
+            max_wait_time_secs = DEFAULT_WAIT_TIME_LOCK_FILE
     ):
         if not lockfile.LockFile.acquire_file_cache_lock(
-                lock_file_path = self.lock_file_path
+                lock_file_path = self.lock_file_path,
+                max_wait_time_secs = max_wait_time_secs
         ):
             lg.Log.critical(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                + ': Could not serialize to "' + str(self.obj_file_path) + '", could not obtain lock to "'
-                + str(self.lock_file_path) + '".'
+                + ': Atomic update could not serialize to "' + str(self.obj_file_path)
+                + '", could not obtain lock to "' + str(self.lock_file_path) + '".'
             )
             return False
 
         try:
-            cache_obj = ObjectPersistence.deserialize_object_from_file(
+            self.obj = ObjectPersistence.deserialize_object_from_file(
                 obj_file_path  = self.obj_file_path,
                 # We already obtained lock manually
                 lock_file_path = None
             )
-            if cache_obj is None:
+            if self.obj is None:
                 lg.Log.error(
                     str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
                     + ': Atomic update fail, cannot deserialize from file.'
                 )
-                cache_obj = self.default_obj
+                self.__assign_default_object_copy()
 
-            print('cache object type ' + str(type(cache_obj)))
+            print('cache object type ' + str(type(self.obj)))
 
-            if type(cache_obj) is dict:
-                if type(new_item) is not dict:
+            if type(self.obj) is dict:
+                if type(new_items) is not dict:
                     lg.Log.error(
                         str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
                         + ': Atomic updates to dict type must be a dict item! Got item type "'
-                        + str(type(new_item)) + '": ' + str(new_item)
+                        + str(type(new_items)) + '": ' + str(new_items)
                     )
                     return False
-                for k in new_item.keys():
+                for k in new_items.keys():
                     if mode == ObjectPersistence.ATOMIC_UPDATE_MODE_ADD:
-                        cache_obj[k] = new_item[k]
+                        self.obj[k] = new_items[k]
                         lg.Log.info(
                             str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                            + ': Added new item ' + str(new_item)
+                            + ': Atomic update added new item ' + str(new_items)
                         )
                     elif mode == ObjectPersistence.ATOMIC_UPDATE_MODE_REMOVE:
-                        if k in cache_obj.keys():
-                            del cache_obj[k]
+                        if k in self.obj.keys():
+                            del self.obj[k]
                             lg.Log.info(
                                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                                + ': Removed item ' + str(new_item)
+                                + ': Atomic update removed item ' + str(new_items)
                             )
                     else:
                         lg.Log.error(
                             str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
                             + ': Atomic update invalid mode "'+ str(mode) + '"!'
                         )
+                        return False
             else:
                 lg.Log.error(
                     str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
                     + ': Atomic updates not supported for cache type "'
-                    + str(type(cache_obj)) + '"!'
+                    + str(type(self.obj)) + '"!'
                 )
                 return False
 
             res = ObjectPersistence.serialize_object_to_file(
-                obj = cache_obj,
+                obj = self.obj,
                 obj_file_path = self.obj_file_path,
                 lock_file_path = None
             )
             if not res:
                 lg.Log.error(
                     str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                    + ': Atomic update new item ' + str(new_item)
+                    + ': Atomic update new item ' + str(new_items)
                     + ' fail, could not serialize update to file "' + str(self.obj_file_path) + '"'
                 )
                 return False
         except Exception as ex:
             lg.Log.error(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                + ': Atomic update new item ' + str(new_item)
+                + ': Atomic update new item ' + str(new_items)
                 + ' fail. Exception update to file "' + str(self.obj_file_path) + '": ' + str(ex)
             )
             return False
@@ -134,13 +149,15 @@ class ObjectPersistence:
     #
     def update_persistent_object(
             self,
-            new_obj
+            new_obj,
+            max_wait_time_secs = DEFAULT_WAIT_TIME_LOCK_FILE
     ):
         self.obj = new_obj
         res = ObjectPersistence.serialize_object_to_file(
             obj            = self.obj,
             obj_file_path  = self.obj_file_path,
-            lock_file_path = self.lock_file_path
+            lock_file_path = self.lock_file_path,
+            max_wait_time_secs = max_wait_time_secs
         )
         if not res:
             lg.Log.error(
@@ -154,11 +171,13 @@ class ObjectPersistence:
     # Wrapper read function for applications
     #
     def read_persistent_object(
-            self
+            self,
+            max_wait_time_secs = DEFAULT_WAIT_TIME_LOCK_FILE
     ):
         obj_read = ObjectPersistence.deserialize_object_from_file(
             obj_file_path  = self.obj_file_path,
-            lock_file_path = self.lock_file_path
+            lock_file_path = self.lock_file_path,
+            max_wait_time_secs = max_wait_time_secs
         )
         if obj_read is not None:
             self.obj = obj_read
@@ -176,14 +195,7 @@ class ObjectPersistence:
                 + '" of type "' + str(type(self.obj)) + ', different with default obj type "'
                 + str(type(self.default_obj)) + '". Setting obj back to default obj.'
             )
-            try:
-                self.obj = self.default_obj.copy()
-            except Exception as ex_copy:
-                errmsg = str(__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
-                         + ': Failed to assign copy of default object: ' + str(ex_copy)\
-                         + '. This will potentially modify default object!'
-                lg.Log.error(errmsg)
-                self.obj = self.default_obj
+            self.__assign_default_object_copy()
 
         return self.obj
 
@@ -193,11 +205,13 @@ class ObjectPersistence:
             obj_file_path,
             # If None, means we don't obtain lock. Caller might already have the lock.
             lock_file_path = None,
+            max_wait_time_secs = DEFAULT_WAIT_TIME_LOCK_FILE,
             verbose = 0
     ):
         if lock_file_path is not None:
             if not lockfile.LockFile.acquire_file_cache_lock(
-                    lock_file_path = lock_file_path
+                    lock_file_path = lock_file_path,
+                    max_wait_time_secs = max_wait_time_secs
             ):
                 lg.Log.critical(
                     str(ObjectPersistence.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
@@ -249,7 +263,8 @@ class ObjectPersistence:
     def deserialize_object_from_file(
             obj_file_path,
             # If None, means we don't obtain lock. Caller might already have the lock.
-            lock_file_path=None,
+            lock_file_path = None,
+            max_wait_time_secs = DEFAULT_WAIT_TIME_LOCK_FILE,
             verbose=0
     ):
         if not os.path.isfile(obj_file_path):
@@ -261,7 +276,8 @@ class ObjectPersistence:
 
         if lock_file_path is not None:
             if not lockfile.LockFile.acquire_file_cache_lock(
-                lock_file_path = lock_file_path
+                lock_file_path = lock_file_path,
+                max_wait_time_secs = max_wait_time_secs
             ):
                 lg.Log.critical(
                     str(ObjectPersistence.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
@@ -337,5 +353,9 @@ if __name__ == '__main__':
         obj_file_path = obj_file_path,
         lock_file_path = lock_file_path
     )
-    print(x.atomic_update(new_item={1:'hana', 2:'dul'}, mode = ObjectPersistence.ATOMIC_UPDATE_MODE_ADD))
+    print(x.atomic_update(new_items={1:'hana', 2:'dul'}, mode = ObjectPersistence.ATOMIC_UPDATE_MODE_ADD))
+    print(x.read_persistent_object())
+    print(x.atomic_update(new_items={1:'hana'}, mode = ObjectPersistence.ATOMIC_UPDATE_MODE_REMOVE))
+    print(x.read_persistent_object())
+    print(x.atomic_update(new_items={3:'set'}, mode = ObjectPersistence.ATOMIC_UPDATE_MODE_ADD))
     print(x.read_persistent_object())
