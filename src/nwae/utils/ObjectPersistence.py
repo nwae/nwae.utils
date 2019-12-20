@@ -345,13 +345,14 @@ class LoadTest:
 
         def run(self):
             for i in range(self.count_to):
+                # To ensure all values are unique, "count_to" is the mathematical base
                 value = self.count_to*self.thread_num + i
                 self.cache.atomic_update(
                     new_items = {value: threading.get_ident()},
                     mode = ObjectPersistence.ATOMIC_UPDATE_MODE_ADD
                 )
                 print('Value=' + str(value) + ' +++ ' + str(self.cache.read_persistent_object()))
-                # Delete something
+                # Delete something at random
                 if random.choice([0,1]) == 1:
                     obj = self.cache.read_persistent_object()
                     key_choices = list(obj.keys())
