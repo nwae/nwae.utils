@@ -4,6 +4,9 @@ import os
 import nwae.utils.LockFile as lockfile
 import nwae.utils.Log as lg
 from inspect import currentframe, getframeinfo
+import threading
+import random
+import time
 
 
 #
@@ -314,12 +317,91 @@ class ObjectPersistence:
                     lock_file_path = lock_file_path
                 )
 
+class LoadTest:
+    
+    def __init__(self, obj_file_path, lock_file_path, max_wait_time_secs, n_threads, count_to):
+        self.obj_file_path = obj_file_path
+        self.lock_file_path = lock_file_path
+        self.max_wait_time_secs = max_wait_time_secs
+        self.n_threads = n_threads
+        self.count_to = count_to
+        return
+
+    class CountThread(threading.Thread):
+        def __init__(self, thread_num, cache, count_to, max_wait_time_secs):
+            super(LoadTest.CountThread, self).__init__()
+            self.thread_num = thread_num
+            self.cache = cache
+            self.count_to = count_to
+            self.max_wait_time_secs = max_wait_time_secs
+
+        def run(self):
+            for i in range(self.count_to):
+                value = self.count_to*self.thread_num + i
+                self.cache.atomic_update(
+                    new_items = {value: threading.get_ident()},
+                    mode = ObjectPersistence.ATOMIC_UPDATE_MODE_ADD
+                )
+                print('Value=' + str(value) + ' +++ ' + str(self.cache.read_persistent_object()))
+                time.sleep(random.uniform(0.005,0.010))
+            print('***** THREAD ' + str(threading.get_ident()) + ' DONE ' + str(self.count_to) + ' COUNTS')
+
+    def run(self):
+        threads_list = []
+        n_sum = 0
+        for i in range(self.n_threads):
+            n_sum += self.count_to
+            threads_list.append(LoadTest.CountThread(
+                thread_num = i,
+                cache = ObjectPersistence(
+                    default_obj = {},
+                    obj_file_path = self.obj_file_path,
+                    lock_file_path = self.lock_file_path
+                ),
+                count_to = self.count_to,
+                max_wait_time_secs = self.max_wait_time_secs
+            ))
+            print(str(i) + '. New thread "' + str(threads_list[i].getName()) + '" count ' + str(self.count_to))
+        expected_values = []
+        for i in range(len(threads_list)):
+            for j in range(self.count_to):
+                expected_values.append(self.count_to*i + j)
+            thr = threads_list[i]
+            print('Starting thread ' + str(i))
+            thr.start()
+
+        for thr in threads_list:
+            thr.join()
+
+        cache = ObjectPersistence(
+            default_obj={},
+            obj_file_path=self.obj_file_path,
+            lock_file_path=self.lock_file_path
+        )
+        print('********* Final Object File: ' + str(cache.read_persistent_object()))
+        values = list(cache.read_persistent_object().keys())
+        print('Keys: ' + str(values))
+        print('Total = ' + str(len(values)))
+        print('PASS = ' + str(values.sort() == expected_values.sort()))
+
 
 if __name__ == '__main__':
+    lg.Log.LOGLEVEL = lg.Log.LOG_LEVEL_INFO
+
+    obj_file_path = '/tmp/loadtest.objpers.obj'
+    lock_file_path = '/tmp/loadtest.objpers.obj.lock'
+    os.remove(obj_file_path)
+    LoadTest(
+        obj_file_path = obj_file_path,
+        lock_file_path = lock_file_path,
+        count_to = 10,
+        n_threads = 50,
+        max_wait_time_secs = 30
+    ).run()
+    exit(0)
+
     obj_file_path = '/tmp/pickleObj.b'
     lock_file_path = '/tmp/.lock.pickleObj.b'
-
-    lg.Log.LOGLEVEL = lg.Log.LOG_LEVEL_INFO
 
     objects = [
         {
