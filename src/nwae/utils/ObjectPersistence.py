@@ -317,8 +317,16 @@ class ObjectPersistence:
                     lock_file_path = lock_file_path
                 )
 
+
+#
+# We do extreme testing on ObjectPersistence, by running hundreds of threads updating
+# a single file.
+# We then check back if there are any errors.
+#
 class LoadTest:
-    
+
+    DELETED_KEYS_SET = set()
+
     def __init__(self, obj_file_path, lock_file_path, max_wait_time_secs, n_threads, count_to):
         self.obj_file_path = obj_file_path
         self.lock_file_path = lock_file_path
@@ -343,10 +351,22 @@ class LoadTest:
                     mode = ObjectPersistence.ATOMIC_UPDATE_MODE_ADD
                 )
                 print('Value=' + str(value) + ' +++ ' + str(self.cache.read_persistent_object()))
+                # Delete something
+                if random.choice([0,1]) == 1:
+                    obj = self.cache.read_persistent_object()
+                    key_choices = list(obj.keys())
+                    if len(key_choices) > 0:
+                        random_key_to_delete = random.choice(key_choices)
+                        self.cache.atomic_update(
+                            new_items = {random_key_to_delete: obj[random_key_to_delete]},
+                            mode = ObjectPersistence.ATOMIC_UPDATE_MODE_REMOVE
+                        )
+                        LoadTest.DELETED_KEYS_SET.add(random_key_to_delete)
+                        print('DELETED ' + str(random_key_to_delete))
                 time.sleep(random.uniform(0.005,0.010))
             print('***** THREAD ' + str(threading.get_ident()) + ' DONE ' + str(self.count_to) + ' COUNTS')
 
-    def run(self):
+    def start_test(self):
         threads_list = []
         n_sum = 0
         for i in range(self.n_threads):
@@ -380,24 +400,42 @@ class LoadTest:
         )
         print('********* Final Object File: ' + str(cache.read_persistent_object()))
         values = list(cache.read_persistent_object().keys())
-        print('Keys: ' + str(values))
-        print('Total = ' + str(len(values)))
-        print('PASS = ' + str(values.sort() == expected_values.sort()))
+        print('Added Keys: ' + str(values))
+        print('Deleted Keys: ' + str(LoadTest.DELETED_KEYS_SET))
+        print('Total Added = ' + str(len(values)))
+        print('Total Deleted = ' + str(len(LoadTest.DELETED_KEYS_SET)))
+        values.sort()
+        expected_values = list( set(expected_values) - LoadTest.DELETED_KEYS_SET )
+        expected_values.sort()
+        print('PASS = ' + str(values == expected_values))
+        print(values)
+        print(expected_values)
+
+
+def test_object_persistence_extreme():
+    obj_file_path = '/tmp/loadtest.objpers.obj'
+    lock_file_path = '/tmp/loadtest.objpers.obj.lock'
+    try:
+        os.remove(obj_file_path)
+    except Exception:
+        pass
+    try:
+        os.remove(lock_file_path)
+    except Exception:
+        pass
+    LoadTest(
+        obj_file_path=obj_file_path,
+        lock_file_path=lock_file_path,
+        count_to=10,
+        n_threads=100,
+        max_wait_time_secs=30
+    ).start_test()
 
 
 if __name__ == '__main__':
     lg.Log.LOGLEVEL = lg.Log.LOG_LEVEL_INFO
 
-    obj_file_path = '/tmp/loadtest.objpers.obj'
-    lock_file_path = '/tmp/loadtest.objpers.obj.lock'
-    os.remove(obj_file_path)
-    LoadTest(
-        obj_file_path = obj_file_path,
-        lock_file_path = lock_file_path,
-        count_to = 10,
-        n_threads = 50,
-        max_wait_time_secs = 30
-    ).run()
+    test_object_persistence_extreme()
     exit(0)
 
     obj_file_path = '/tmp/pickleObj.b'
