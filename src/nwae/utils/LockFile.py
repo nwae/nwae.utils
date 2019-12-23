@@ -15,12 +15,12 @@ import uuid
 #
 #   Model:
 #     Let the frequency of checks for file lock availability be C per second
-#     for each worker. As example let C=4
-#     Let the time of locking a file be 1/S.
+#     for each worker. As example let C=4.
+#     Let the available lock "slots" available in 1s be S.
 #     Since it takes about 0.3521 ms at 1% quantile, we assume the clash interval
 #     at 0.35ms or about 3000-th of a second. If we assume the lock is held for
 #     another period of time to do other things, we assume the lock is held for
-#     10ms, or W=100.
+#     10ms, or S=100.
 #     Thus in 1s if S=100, there are only S=100 lock slots on offer.
 #     If the number of threads competing is N>100, then some threads will not
 #     gain a slot in that 1s window.
@@ -381,8 +381,8 @@ if __name__ == '__main__':
         # If the number of threads N are doubled, the probability increases twice.
         # Thus P(fail_lock) = k * N / W
         # The constant k depends on the machine, on a Mac Book Air, k = 1/200 = 0.005
-        max_wait_time_secs = 7,
-        n_threads = 150,
+        max_wait_time_secs = 5.8,
+        n_threads = 120,
         # The probability of failed lock does not depend on this, this is just sampling
         count_to = 20
     ).run()
