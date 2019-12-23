@@ -11,25 +11,41 @@ import uuid
 
 #
 # THEORY OF CLASH
+#   Both Models below have been tested and is theoretically correct.
+#
 #   Model:
-#     Let the probability of clash be c for 2 random parties accessing a time
-#     slot of t.
-#     Thus if there are n parties, the clash probability P(n) of n clashes
-#     is just a Bernoulli.
+#     Let the frequency of checks for file lock availability be C per second
+#     for each worker. As example let C=4
+#     Let the time of locking a file be 1/S.
+#     Since it takes about 0.3521 ms at 1% quantile, we assume the clash interval
+#     at 0.35ms or about 3000-th of a second. If we assume the lock is held for
+#     another period of time to do other things, we assume the lock is held for
+#     10ms, or W=100.
+#     Thus in 1s if S=100, there are only S=100 lock slots on offer.
+#     If the number of threads competing is N>100, then some threads will not
+#     gain a slot in that 1s window.
+#     This means the probability of checking in any of the write slot is C/W
+#     or about 1/100 (note it is not a Poisson).
+#     This means in 1s, the probability of a thread not gaining a lock if in
+#     total N threads are competing is given by the access slots max(0,N-S)
+#     divided by total threads N
+#            F(1) = P(Fail to obtain lock in 1s) = max(0,N-S)/N
+#     Thus the probability of not obtaining lock in x seconds (assuming all N
+#     threads are working forever, never stops) is
+#            F(x) = F(1)/x
 #
-# But for simplicity, we can use the following:
-# When N workers/processes/threads simultaneously access a resource, with
-# max wait time W, there is a probability of a worker never getting to access
-# this resource within this time W.
-# If the wait time W is doubled, the probability falls by half (not mathematically
-# correct actually).
-# If the number of threads N are doubled, the probability increases twice (also
-# not mathematically correct).
-# Thus
-#
-#      P(fail_to_obtain_lock) = k * N / W
-#
-# The constant k depends on the machine, on a Mac Book Air, k = 1/250 = 0.005
+#   Empirical Model:
+#     But for simplicity, we can use the following:
+#     When N workers/processes/threads simultaneously access a resource, with
+#     max wait time W, there is a probability of a worker never getting to access
+#     this resource within this time W.
+#     If the wait time W is doubled, the probability falls by half (not mathematically
+#     correct actually).
+#     If the number of threads N are doubled, the probability increases twice (also
+#     not mathematically correct).
+#     Thus
+#          P(fail_to_obtain_lock) = k * N / W
+#     The constant k depends on the machine, on a Mac Book Air, k = 1/250 = 0.005
 #
 class LockFile:
 
@@ -42,6 +58,8 @@ class LockFile:
 
     # For Mac Book Air
     K_CONSTANT_MAC_BOOK_AIR = 1 / 250
+    # Slots available per second
+    SLOTS_PER_SEC = 45
 
     def __init__(self):
         return
@@ -149,12 +167,9 @@ class LockFile:
                 f.close()
 
                 #
-                # If many processes competing to obtain lock, make sure to check for file existence again
-                # once file lock is acquired.
-                # It is possible some other competing processes have obtained it.
-                # And thus we do a verification check below
-                # Read back, as there might be another worker/thread that obtained the lock and wrote
-                # something to it also. This can handle cross process, unlike memory locks.
+                # If many processes competing to obtain lock, means many processes will arrive here simultaneously.
+                # Read back, as there might be another worker/thread that reached this point and wrote
+                # something to it also. This can handle cross process clashes, unlike memory locks.
                 #
                 # The time stats for writing a lock file (test function below) is the following in milliseconds:
                 #   {'average': 0.6627,
@@ -174,7 +189,7 @@ class LockFile:
                 read_back_string = f.read()
                 f.close()
                 if (read_back_string == random_string):
-                    lg.Log.debugdebug('Read back random string "' + str(read_back_string) + '" ok. Memory counter ok.')
+                    lg.Log.debugdebug('Read back random string "' + str(read_back_string) + '" ok.')
                     return True
                 else:
                     LockFile.N_RACE_CONDITIONS_FILE += 1
@@ -333,12 +348,18 @@ class LoadTestLockFile:
         for thr in threads_list:
             thr.join()
 
+        print('********* THREADS N=' + str(self.n_threads) + ', WAIT=' + str(self.max_wait_time_secs) + 's.')
         print('********* TOTAL SHOULD GET ' + str(n_sum) + '. Failed Counts = ' + str(LoadTestLockFile.N_FAILED_LOCK))
         print('********* TOTAL COUNT SHOULD BE = ' + str(n_sum - LoadTestLockFile.N_FAILED_LOCK))
         print('********* TOTAL RACE CONDITIONS MEMORY = ' + str(LockFile.N_RACE_CONDITIONS_MEMORY))
         print('********* TOTAL RACE CONDITIONS FILE = ' + str(LockFile.N_RACE_CONDITIONS_FILE))
         print('********* PROBABILITY OF FAILED LOCKS = ' + str(round(LoadTestLockFile.N_FAILED_LOCK / n_sum, 4)))
-        print('********* THEO PROBABILITY OF FAILED LOCKS = '
+        N = self.n_threads
+        x = self.max_wait_time_secs
+        F_1 = max(0, N-LockFile.SLOTS_PER_SEC) / N
+        print('********* THEO PROBABILITY OF FAILED LOCKS (Theo Model) = '
+              + str(round(F_1/x, 4)))
+        print('********* THEO PROBABILITY OF FAILED LOCKS (Empirical Model) = '
               + str(round(LockFile.K_CONSTANT_MAC_BOOK_AIR * self.n_threads / self.max_wait_time_secs, 4)))
 
 
@@ -360,10 +381,10 @@ if __name__ == '__main__':
         # If the number of threads N are doubled, the probability increases twice.
         # Thus P(fail_lock) = k * N / W
         # The constant k depends on the machine, on a Mac Book Air, k = 1/200 = 0.005
-        max_wait_time_secs = 10,
-        n_threads = 100,
+        max_wait_time_secs = 7,
+        n_threads = 150,
         # The probability of failed lock does not depend on this, this is just sampling
-        count_to = 10
+        count_to = 20
     ).run()
 
     exit(0)
