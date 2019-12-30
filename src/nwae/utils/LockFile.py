@@ -7,6 +7,7 @@ from inspect import currentframe, getframeinfo
 import threading
 import random
 import uuid
+from nwae.utils.Profiling import Profiling
 
 
 #
@@ -56,6 +57,12 @@ class LockFile:
     USE_LOCKS_MUTEX = False
     __LOCKS_MUTEX = {}
 
+    #
+    # If a lock file is older than 30 secs, remove forcefully.
+    # No process should hold it for so long anyway.
+    #
+    FORCE_REMOVE_LOCKFILE_AGE_SECS_THRESHOLD = 30
+
     # For Mac Book Air
     K_CONSTANT_MAC_BOOK_AIR = 1 / 250
     # Slots available per second
@@ -72,10 +79,47 @@ class LockFile:
         total_sleep_time = 0.0
 
         while os.path.isfile(lock_file_path):
+            #
+            # Check lock file time, if older than certain threshold, remove it forcefully.
+            # It is unlikely a process has had it for so long, or that process may have died
+            # already.
+            #
+            # Check if file time is newer
+            try:
+                ftime = dt.datetime.fromtimestamp( os.path.getmtime(lock_file_path) )
+                lockfile_age_secs = Profiling.get_time_dif_secs(start=ftime, stop=dt.datetime.now(), decimals=4)
+            except Exception as ex_check_time:
+                lockfile_age_secs = -1
+                lg.Log.warning(
+                    str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                    + ': Exception checking time for lock file "' + str(lock_file_path)
+                    + '", possible already released by another process. Exception: ' + str(ex_check_time)
+                )
+
+            if lockfile_age_secs > LockFile.FORCE_REMOVE_LOCKFILE_AGE_SECS_THRESHOLD:
+                lg.Log.critical(
+                    str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                    + ': Trying to forcefully remove lock file "' + str(lock_file_path)
+                    + '". Already ' + str(lockfile_age_secs) + ' seconds old.'
+                )
+                if LockFile.release_file_cache_lock(lock_file_path=lock_file_path):
+                    lg.Log.warning(
+                        str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                        + ': Success. Forcefully removed lock file "' + str(lock_file_path)
+                        + '". Already ' + str(lockfile_age_secs) + ' seconds old.'
+                    )
+                else:
+                    lg.Log.critical(
+                        str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                        + ': Error. Failed to forcefully remove lock file "' + str(lock_file_path)
+                        + '". Already ' + str(lockfile_age_secs) + ' seconds old.'
+                    )
+
             lg.Log.important(
                 str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
                 + ': Waiting for file lock "' + str(lock_file_path)
-                + '", ' + str(round(total_sleep_time,2)) + 's..'
+                + '", ' + str(round(total_sleep_time,2))
+                + 's. Lock file age = ' + str(lockfile_age_secs) + 's.'
             )
             sleep_time = random.uniform(0.1,0.5)
             t.sleep(sleep_time)
@@ -258,8 +302,6 @@ class LockFile:
             lock_file_path,
             n_rounds = 1000
     ):
-        from nwae.utils.Profiling import Profiling
-
         x = []
 
         for i in range(n_rounds):
@@ -366,42 +408,43 @@ class LoadTestLockFile:
 if __name__ == '__main__':
     lock_file_path = '/tmp/lockfile.test.lock'
 
-    #print('Average time to create lock file = ')
-    #print(LockFile.get_time_stats_to_create_lock_file(lock_file_path=lock_file_path, n_rounds=10000))
-    #exit(0)
+    test = 'load test lock file'
 
-    LockFile.release_file_cache_lock(lock_file_path=lock_file_path)
+    if test == 'lock file stats':
+        print('Average time to create lock file = ')
+        print(LockFile.get_time_stats_to_create_lock_file(lock_file_path=lock_file_path, n_rounds=10000))
+        exit(0)
 
-    lg.Log.LOGLEVEL = lg.Log.LOG_LEVEL_INFO
-    LoadTestLockFile(
-        lock_file_path = lock_file_path,
-        # From trial and error, for 100 simultaneous threads, each counting to 50,
-        # waiting for max 10 secs, the probability of failed lock is about 100/5000
-        # If the wait time W is doubled, the probability falls by half.
-        # If the number of threads N are doubled, the probability increases twice.
-        # Thus P(fail_lock) = k * N / W
-        # The constant k depends on the machine, on a Mac Book Air, k = 1/200 = 0.005
-        max_wait_time_secs = 5.8,
-        n_threads = 120,
-        # The probability of failed lock does not depend on this, this is just sampling
-        count_to = 20
-    ).run()
+    if test == 'load test lock file':
+        lg.Log.LOGLEVEL = lg.Log.LOG_LEVEL_INFO
+        LoadTestLockFile(
+            lock_file_path = lock_file_path,
+            # From trial and error, for 100 simultaneous threads, each counting to 50,
+            # waiting for max 10 secs, the probability of failed lock is about 100/5000
+            # If the wait time W is doubled, the probability falls by half.
+            # If the number of threads N are doubled, the probability increases twice.
+            # Thus P(fail_lock) = k * N / W
+            # The constant k depends on the machine, on a Mac Book Air, k = 1/200 = 0.005
+            max_wait_time_secs = 8.8,
+            n_threads = 120,
+            # The probability of failed lock does not depend on this, this is just sampling
+            count_to = 20
+        ).run()
 
-    exit(0)
+    if test == '':
+        lg.Log.LOGLEVEL = lg.Log.LOG_LEVEL_DEBUG_2
+        res = LockFile.acquire_file_cache_lock(
+            lock_file_path = lock_file_path,
+            max_wait_time_secs = 30
+        )
+        print('Lock obtained = ' + str(res))
+        res = LockFile.release_file_cache_lock(
+            lock_file_path = lock_file_path
+        )
+        print('Lock released = ' + str(res))
 
-    lg.Log.LOGLEVEL = lg.Log.LOG_LEVEL_DEBUG_2
-    res = LockFile.acquire_file_cache_lock(
-        lock_file_path = lock_file_path,
-        max_wait_time_secs = 1.2
-    )
-    print('Lock obtained = ' + str(res))
-    res = LockFile.release_file_cache_lock(
-        lock_file_path = lock_file_path
-    )
-    print('Lock released = ' + str(res))
-
-    res = LockFile.acquire_file_cache_lock(
-        lock_file_path = lock_file_path,
-        max_wait_time_secs = 2.2
-    )
-    print('Lock obtained = ' + str(res))
+        res = LockFile.acquire_file_cache_lock(
+            lock_file_path = lock_file_path,
+            max_wait_time_secs = 2.2
+        )
+        print('Lock obtained = ' + str(res))
