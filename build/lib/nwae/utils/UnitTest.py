@@ -3,6 +3,11 @@
 import nwae.utils.Log as lg
 
 
+class ResultObj:
+    def __init__(self, count_ok, count_fail):
+        self.count_ok = count_ok
+        self.count_fail = count_fail
+
 class UnitTest:
 
     @staticmethod
