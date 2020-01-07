@@ -7,6 +7,7 @@ from inspect import currentframe, getframeinfo
 import threading
 import random
 import time
+import nwae.utils.UnitTest as nwaeut
 
 
 #
@@ -78,13 +79,16 @@ class ObjectPersistence:
                 lock_file_path = None
             )
             if self.obj is None:
-                lg.Log.error(
+                lg.Log.warning(
                     str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                    + ': Atomic update fail, cannot deserialize from file.'
+                    + ': Atomic update cannot deserialize from file.'
                 )
                 self.__assign_default_object_copy()
 
-            print('cache object type ' + str(type(self.obj)))
+            lg.Log.debug(
+                str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                + ': Cache object type ' + str(type(self.obj))
+            )
 
             if type(self.obj) is dict:
                 if type(new_items) is not dict:
@@ -185,7 +189,7 @@ class ObjectPersistence:
         if obj_read is not None:
             self.obj = obj_read
         else:
-            lg.Log.error(
+            lg.Log.warning(
                 str(__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
                 + ': None object from file "' + str(self.obj_file_path)
                 + '", lock file "' + str(self.lock_file_path) + '". Returning memory object.'
@@ -271,9 +275,9 @@ class ObjectPersistence:
             verbose=0
     ):
         if not os.path.isfile(obj_file_path):
-            lg.Log.critical(
+            lg.Log.warning(
                 str(ObjectPersistence.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                + ': No object file "' + str(obj_file_path) + '" found!!'
+                + ': No object file "' + str(obj_file_path) + '" found.'
             )
             return None
 
@@ -351,7 +355,7 @@ class LoadTest:
                     new_items = {value: threading.get_ident()},
                     mode = ObjectPersistence.ATOMIC_UPDATE_MODE_ADD
                 )
-                print('Value=' + str(value) + ' +++ ' + str(self.cache.read_persistent_object()))
+                lg.Log.info('Value=' + str(value) + ' +++ ' + str(self.cache.read_persistent_object()))
                 # Delete something at random
                 if random.choice([0,1]) == 1:
                     obj = self.cache.read_persistent_object()
@@ -363,11 +367,11 @@ class LoadTest:
                             mode = ObjectPersistence.ATOMIC_UPDATE_MODE_REMOVE
                         )
                         LoadTest.DELETED_KEYS_SET.add(random_key_to_delete)
-                        print('DELETED ' + str(random_key_to_delete))
+                        lg.Log.info('DELETED ' + str(random_key_to_delete))
                 time.sleep(random.uniform(0.005,0.010))
-            print('***** THREAD ' + str(threading.get_ident()) + ' DONE ' + str(self.count_to) + ' COUNTS')
+            lg.Log.info('***** THREAD ' + str(threading.get_ident()) + ' DONE ' + str(self.count_to) + ' COUNTS')
 
-    def start_test(self):
+    def run_unit_test(self):
         threads_list = []
         n_sum = 0
         for i in range(self.n_threads):
@@ -382,13 +386,13 @@ class LoadTest:
                 count_to = self.count_to,
                 max_wait_time_secs = self.max_wait_time_secs
             ))
-            print(str(i) + '. New thread "' + str(threads_list[i].getName()) + '" count ' + str(self.count_to))
+            lg.Log.important(str(i) + '. New thread "' + str(threads_list[i].getName()) + '" count ' + str(self.count_to))
         expected_values = []
         for i in range(len(threads_list)):
             for j in range(self.count_to):
                 expected_values.append(self.count_to*i + j)
             thr = threads_list[i]
-            print('Starting thread ' + str(i))
+            lg.Log.important('Starting thread ' + str(i))
             thr.start()
 
         for thr in threads_list:
@@ -399,84 +403,126 @@ class LoadTest:
             obj_file_path=self.obj_file_path,
             lock_file_path=self.lock_file_path
         )
-        print('********* Final Object File: ' + str(cache.read_persistent_object()))
+        lg.Log.important('********* Final Object File: ' + str(cache.read_persistent_object()))
         values = list(cache.read_persistent_object().keys())
-        print('Added Keys: ' + str(values))
-        print('Deleted Keys: ' + str(LoadTest.DELETED_KEYS_SET))
-        print('Total Added = ' + str(len(values)))
-        print('Total Deleted = ' + str(len(LoadTest.DELETED_KEYS_SET)))
+        lg.Log.important('Added Keys: ' + str(values))
+        lg.Log.important('Deleted Keys: ' + str(LoadTest.DELETED_KEYS_SET))
+        lg.Log.important('Total Added = ' + str(len(values)))
+        lg.Log.important('Total Deleted = ' + str(len(LoadTest.DELETED_KEYS_SET)))
         values.sort()
         expected_values = list( set(expected_values) - LoadTest.DELETED_KEYS_SET )
         expected_values.sort()
-        print('PASS = ' + str(values == expected_values))
-        print(values)
-        print(expected_values)
+        test_pass = values == expected_values
+        lg.Log.important('PASS = ' + str(test_pass))
+        lg.Log.important('Values:   ' + str(values))
+        lg.Log.important('Expected: ' + str(expected_values))
+        return nwaeut.ResultObj(count_ok=1*test_pass, count_fail=1*(not test_pass))
 
 
-def test_object_persistence_extreme():
-    obj_file_path = '/tmp/loadtest.objpers.obj'
-    lock_file_path = '/tmp/loadtest.objpers.obj.lock'
-    try:
-        os.remove(obj_file_path)
-    except Exception:
-        pass
-    try:
-        os.remove(lock_file_path)
-    except Exception:
-        pass
-    LoadTest(
-        obj_file_path=obj_file_path,
-        lock_file_path=lock_file_path,
-        count_to=10,
-        n_threads=100,
-        max_wait_time_secs=30
-    ).start_test()
+class UnitTestObjectPersistence:
+
+    def __init__(self, ut_params):
+        self.ut_params = ut_params
+        if self.ut_params is None:
+            self.ut_params = nwaeut.UnitTestParams
+        return
+
+    def __remove_files(self, obj_file_path, lock_file_path):
+        try:
+            os.remove(obj_file_path)
+        except Exception:
+            pass
+        try:
+            os.remove(lock_file_path)
+        except Exception:
+            pass
+
+    def run_unit_test(self):
+        obj_file_path = '/tmp/loadtest.objpers.obj'
+        lock_file_path = '/tmp/loadtest.objpers.obj.lock'
+
+        #
+        # If we don't do this the test will fail as the upcoming threads,
+        # many of them will try to delete the file due to timeout, and will
+        # accidentally delete one created by another thread
+        #
+        self.__remove_files(obj_file_path=obj_file_path, lock_file_path=lock_file_path)
+
+        res_load_test = LoadTest(
+            obj_file_path  = obj_file_path,
+            lock_file_path = lock_file_path,
+            count_to       = 5,
+            n_threads      = 30,
+            max_wait_time_secs = 30
+        ).run_unit_test()
+
+        res_other = nwaeut.ResultObj(count_ok=0, count_fail=0)
+        obj_file_path = '/tmp/objPersTest.b'
+        lock_file_path = '/tmp/lock.objPersTest.b'
+        self.__remove_files(obj_file_path=obj_file_path, lock_file_path=lock_file_path)
+
+        objects = [
+            {
+                'a': [1, 2, 3],
+                'b': 'test object'
+            },
+            # Empty objects
+            [],
+            {},
+            88,
+            'eighty eight'
+        ]
+
+        for obj in objects:
+            ObjectPersistence.serialize_object_to_file(
+                obj            = obj,
+                obj_file_path  = obj_file_path,
+                lock_file_path = lock_file_path
+            )
+
+            b = ObjectPersistence.deserialize_object_from_file(
+                obj_file_path  = obj_file_path,
+                lock_file_path = lock_file_path
+            )
+            lg.Log.info(str(b))
+            ok = obj == b
+            res_other.count_ok += 1 * ok
+            res_other.count_fail += 1 * (not ok)
+
+        obj_file_path = '/tmp/objPersTestAtomicUpdate.d'
+        lock_file_path = '/tmp/lock.objPersTestAtomicUpdate.d'
+        self.__remove_files(obj_file_path=obj_file_path, lock_file_path=lock_file_path)
+        x = ObjectPersistence(
+            default_obj    = {},
+            obj_file_path  = obj_file_path,
+            lock_file_path = lock_file_path
+        )
+        lg.Log.info(x.atomic_update(new_items={1: 'hana', 2: 'dul'}, mode=ObjectPersistence.ATOMIC_UPDATE_MODE_ADD))
+        ok = x.read_persistent_object() == {1: 'hana', 2: 'dul'}
+        res_other.count_ok += 1 * ok
+        res_other.count_fail += 1 * (not ok)
+        lg.Log.info(x.atomic_update(new_items={1: 'hana'}, mode=ObjectPersistence.ATOMIC_UPDATE_MODE_REMOVE))
+        ok = x.read_persistent_object() == {2: 'dul'}
+        res_other.count_ok += 1 * ok
+        res_other.count_fail += 1 * (not ok)
+        lg.Log.info(x.atomic_update(new_items={3: 'set'}, mode=ObjectPersistence.ATOMIC_UPDATE_MODE_ADD))
+        ok = x.read_persistent_object() == {2: 'dul', 3: 'set'}
+        res_other.count_ok += 1 * ok
+        res_other.count_fail += 1 * (not ok)
+
+        res_final = nwaeut.ResultObj(
+            count_ok = res_load_test.count_ok + res_other.count_ok,
+            count_fail = res_load_test.count_fail + res_other.count_fail
+        )
+        lg.Log.important(
+            str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+            + ': Object Persistence Unit Test PASS ' + str(res_final.count_ok) + ' FAIL ' + str(res_final.count_fail)
+        )
+        return res_final
 
 
 if __name__ == '__main__':
     lg.Log.LOGLEVEL = lg.Log.LOG_LEVEL_INFO
 
-    test_object_persistence_extreme()
-    exit(0)
-
-    obj_file_path = '/tmp/pickleObj.b'
-    lock_file_path = '/tmp/.lock.pickleObj.b'
-
-    objects = [
-        {
-            'a': [1,2,3],
-            'b': 'test object'
-        },
-        # Empty objects
-        [],
-        {},
-        88,
-        'eighty eight'
-    ]
-
-    for obj in objects:
-        ObjectPersistence.serialize_object_to_file(
-            obj = obj,
-            obj_file_path = obj_file_path,
-            lock_file_path = lock_file_path
-        )
-
-        b = ObjectPersistence.deserialize_object_from_file(
-            obj_file_path = obj_file_path,
-            lock_file_path = lock_file_path
-        )
-        print(str(b))
-
-    obj_file_path = '/tmp/pickleObj.d'
-    lock_file_path = '/tmp/.lock.pickleObj.d'
-    x = ObjectPersistence(
-        default_obj = {},
-        obj_file_path = obj_file_path,
-        lock_file_path = lock_file_path
-    )
-    print(x.atomic_update(new_items={1:'hana', 2:'dul'}, mode = ObjectPersistence.ATOMIC_UPDATE_MODE_ADD))
-    print(x.read_persistent_object())
-    print(x.atomic_update(new_items={1:'hana'}, mode = ObjectPersistence.ATOMIC_UPDATE_MODE_REMOVE))
-    print(x.read_persistent_object())
-    print(x.atomic_update(new_items={3:'set'}, mode = ObjectPersistence.ATOMIC_UPDATE_MODE_ADD))
-    print(x.read_persistent_object())
+    res = UnitTestObjectPersistence(ut_params=None).run_unit_test()
+    exit(res.count_fail)
