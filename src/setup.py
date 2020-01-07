@@ -2,11 +2,12 @@ from setuptools import setup
 
 setup(
     name='nwae.utils',
-    version='1.5.1',
+    version='1.5.2',
     packages=[
         'nwae.utils',
+        'nwae.utils.data',
+        'nwae.utils.networking',
         'nwae.utils.sec',
-        'nwae.utils.data'
     ],
     package_dir={'': 'src'},
     url='',
