@@ -142,7 +142,7 @@ class LockFile:
             verbose = 0
     ):
         if lock_file_path is None:
-            lg.Log.critical(
+            lg.Log.warning(
                 str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
                 + ': Lock file is None type, why obtain lock?!'
             )
@@ -165,7 +165,7 @@ class LockFile:
                 lg.Log.critical(
                     str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
                     + ': Round ' + str(round_count)
-                    + '. Failed to get lock ~' + str(total_wait_time) + 's. Other competing process won lock to file "'
+                    + '. Failed to get lock ~' + str(total_wait_time) + 's to file "'
                     + str(lock_file_path) + '"! Very likely process is being bombarded with too many requests.'
                 )
                 return False
@@ -264,16 +264,16 @@ class LockFile:
             verbose = 0
     ):
         if lock_file_path is None:
-            lg.Log.critical(
+            lg.Log.warning(
                 str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
                 + ': Lock file is None type, why release lock?!'
             )
             return False
 
         if not os.path.isfile(lock_file_path):
-            lg.Log.critical(
+            lg.Log.warning(
                 str(LockFile.__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                + ' No lock file "' + str(lock_file_path) + '" to release!!'
+                + ': No lock file "' + str(lock_file_path) + '" to release!!'
             )
             return True
         else:
