@@ -38,6 +38,13 @@ class ResultObj:
 
 class UnitTest:
 
+    def __init__(self):
+        return
+
+    def run_unit_test(self):
+        print(str(self.__class__) + ': Fake unit test..')
+        return ResultObj(count_ok=0, count_fail=0)
+
     @staticmethod
     def get_unit_test_result(
             input_x,
@@ -65,17 +72,13 @@ class UnitTest:
                     'OK "' + str(x) + '". Output "' + str(res_t) + '"'
                 )
 
-        class retc:
-            def __init__(
-                    self,
-                    count_ok,
-                    count_fail
-            ):
-                self.count_ok = count_ok
-                self.count_fail = count_fail
-
-        return retc(
+        return ResultObj(
             count_ok   = count_ok,
             count_fail = count_fail
         )
+
+
+if __name__ == '__main__':
+    res = UnitTest().run_unit_test()
+    exit(res.count_fail)
 

@@ -8,6 +8,7 @@ SCRIPT_NAME="$0"
 ########################################################################################
 # Where this script is relative to project directory
 PROGRAM_NAME="YOUR PROGRAM NAME"
+UNIT_TEST_SCRIPT="./run.ut.sh"
 RUN_SCRIPT="./run.python.sh"
 KILL_SCRIPT="./kill.by.port.sh"
 CLEANUP_SCRIPT=""
@@ -80,7 +81,25 @@ fi
 sleep 0.5
 
 #
-# Kill Intent APIs wrapped in gunicorn
+# Unit Tests
+#
+if [ "$UNIT_TEST_SCRIPT" == "" ]; then
+  echo "[$SCRIPT_NAME] MISSING No unit test script specified."
+  exit 1
+else
+  if "$UNIT_TEST_SCRIPT" \
+        configfile="$CONFIGFILE" \
+        port="$PORT"; then
+    echo "[$SCRIPT_NAME] OK. Unit Tests PASS."
+  else
+    echo "[$SCRIPT_NAME] ERROR Unit Tests FAIL."
+    exit 1
+  fi
+fi
+sleep 0.5
+
+#
+# Kill Processes wrapped in gunicorn
 #
 echo "[$SCRIPT_NAME] Try to kill $PROGRAM_NAME processes.."
 if ! "$KILL_SCRIPT" port="$PORT"; then

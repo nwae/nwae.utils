@@ -7,18 +7,12 @@ SCRIPT_NAME="$0"
 # Modify only these variables
 ########################################################################################
 # Where this script is relative to project directory
-PROGRAM_NAME="nwae utils"
+PROGRAM_NAME="UNIT TEST"
 SCRIPT_DIR="deploy-scripts"
-COMPULSORY_CMDLINE_PARAMS=""
 PYTHON_VER="3.6"
-USE_GUNICORN=0
-GUNICORN_WORKERS=2
-# sync (CPU intensive), gthread (I/O intensive)
-GUNICORN_WORKER_TYPE="gthread"
-GUNICORN_WORKER_TYPE_FLAG=""
 SOURCE_DIR="../src"
 COMPILE_MODULE="."
-MODULE_TO_RUN="nwae.utils.Log"
+MODULE_TO_RUN="nwae.utils.UnitTest"
 # Folders separated by ":"
 EXTERNAL_SRC_FOLDERS="../../nwae/src"
 ########################################################################################
@@ -45,11 +39,7 @@ for keyvalue in "$@"; do
     fi
 done
 
-if [ "$CONFIGFILE" = "" ] && [ "$(echo "$COMPULSORY_CMDLINE_PARAMS" | grep -i "configfile")" != "" ]; then
-  echo "[$SCRIPT_NAME] ERROR Configfile not specified on command line. Exit 1."
-  exit 1
-fi
-if [ "$PORT" = "" ] && [ "$(echo "$COMPULSORY_CMDLINE_PARAMS" | grep -i "port")" != "" ]; then
+if [ "$PORT" = "" ]; then
   echo "[$SCRIPT_NAME] ERROR Port not specified on command line. Exit 1."
   exit 1
 fi
@@ -109,31 +99,6 @@ if [ $FOUND -eq 0 ]; then
     exit 1
 fi
 
-GUNICORN_BIN=""
-FOUND=0
-#
-# Look for possible gunicorn paths
-#
-for path in "/usr/local/bin/gunicorn" "/Library/Frameworks/Python.framework/Versions/$PYTHON_VER/bin/gunicorn"
-do
-    echo "[$SCRIPT_NAME] Checking gunicorn path $path.."
-    if ls $path 2>/dev/null 1>/dev/null; then
-        echo "[$SCRIPT_NAME]   OK Found gunicorn path in $path"
-        GUNICORN_BIN=$path
-        FOUND=1
-        break
-    else
-        echo "[$SCRIPT_NAME]   ERROR No gunicorn in path $path"
-    fi
-done
-
-if [ $FOUND -eq 0 ]
-then
-    echo "   ERROR No gunicorn binary found!!"
-    exit 1
-fi
-
-
 #
 # Get command line params
 #
@@ -162,25 +127,20 @@ fi
 
 export PYTHONIOENCODING=utf-8
 
-if [ $USE_GUNICORN -eq 0 ]; then
-  echo "[$SCRIPT_NAME] Starting $PROGRAM_NAME.."
-  PYTHONPATH="$PROJECTDIR"/"$SOURCE_DIR":"$EXTERNAL_SRC_FOLDERS" \
-     $PYTHON_BIN -m "$MODULE_TO_RUN" \
-       configfile="$CONFIGFILE" \
-       port="$PORT"
+exit_status=0
+echo "[$SCRIPT_NAME] Starting $PROGRAM_NAME.."
+if PYTHONPATH="$PROJECTDIR"/"$SOURCE_DIR":"$EXTERNAL_SRC_FOLDERS" \
+      $PYTHON_BIN -m "$MODULE_TO_RUN" \
+         configfile="$CONFIGFILE" \
+         port="$PORT"; then
+  exit_status=0
 else
-  echo "[$SCRIPT_NAME] NOT YET IMPLEMENTED $PROGRAM_NAME running from gunicorn."
-  exit 1
-  PYTHONPATH="$PROJECTDIR"/"$SOURCE_DIR":"$EXTERNAL_SRC_FOLDERS" \
-   $GUNICORN_BIN \
-      -w "$GUNICORN_WORKERS" -k "$GUNICORN_WORKER_TYPE" $GUNICORN_WORKER_TYPE_FLAG \
-      --bind 0.0.0.0:"$PORT" \
-         "$MODULE_TO_RUN" \
-            configfile="$CONFIGFILE" \
-            port="$PORT"
+  exit_status=1
 fi
 
 if ! cd - ; then
   echo "[$SCRIPT_NAME] ERROR Can't change back to original folder."
   exit 1
 fi
+
+exit "$exit_status"
