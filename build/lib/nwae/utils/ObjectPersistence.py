@@ -203,6 +203,10 @@ class ObjectPersistence:
                 + str(type(self.default_obj)) + '". Setting obj back to default obj.'
             )
             self.__assign_default_object_copy()
+            # Need to write back to correct the object type
+            self.update_persistent_object(
+                new_obj = self.obj
+            )
 
         return self.obj
 
@@ -507,6 +511,17 @@ class UnitTestObjectPersistence:
         res_other.count_fail += 1 * (not ok)
         lg.Log.info(x.atomic_update(new_items={3: 'set'}, mode=ObjectPersistence.ATOMIC_UPDATE_MODE_ADD))
         ok = x.read_persistent_object() == {2: 'dul', 3: 'set'}
+        res_other.count_ok += 1 * ok
+        res_other.count_fail += 1 * (not ok)
+
+        # Purposely write wrong type
+        x.update_persistent_object(new_obj=[1,2,3])
+        x = ObjectPersistence(
+            default_obj    = {},
+            obj_file_path  = obj_file_path,
+            lock_file_path = lock_file_path
+        )
+        ok = x.read_persistent_object() == {}
         res_other.count_ok += 1 * ok
         res_other.count_fail += 1 * (not ok)
 
