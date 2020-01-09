@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import nwae.utils.Log as lg
+from inspect import getframeinfo, currentframe
 
 
 class UnitTestParams:
@@ -31,19 +32,57 @@ class UnitTestParams:
                + '", Postfix Synonym List "' + str(self.postfix_synonymlist)\
                + '", Dir Model "' + str(self.dirpath_model) + '"'
 
+
 class ResultObj:
     def __init__(self, count_ok, count_fail):
         self.count_ok = count_ok
         self.count_fail = count_fail
 
-class UnitTest:
+    def update(self, other_res_obj):
+        if type(other_res_obj) is not ResultObj:
+            raise Exception(
+                str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                + ': Wrong type "' + str(type(other_res_obj)) + '".'
+            )
+        self.count_ok += other_res_obj.count_ok
+        self.count_fail += other_res_obj.count_fail
 
+    def update_bool(self, res_bool):
+        if type(res_bool) is not bool:
+            raise Exception(
+                str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                + ': Wrong type "' + str(type(res_bool)) + '".'
+            )
+        self.count_ok += 1*res_bool
+        self.count_fail += 1*(not res_bool)
+
+
+class UnitTest:
     def __init__(self):
         return
 
     def run_unit_test(self):
         print(str(self.__class__) + ': Fake unit test..')
         return ResultObj(count_ok=0, count_fail=0)
+
+    @staticmethod
+    def assert_true(
+            observed,
+            expected,
+            test_comment = ''
+    ):
+        if observed == expected:
+            lg.Log.debug(
+                str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                + ': PASS "' + str(test_comment) + '" Observed "' + str(observed) + '", expected "' + str(expected)
+            )
+            return True
+        else:
+            lg.Log.error(
+                str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                + ': FAIL "' + str(test_comment) + '" Observed "' + str(observed) + '", expected "' + str(expected)
+            )
+            return False
 
     @staticmethod
     def get_unit_test_result(
