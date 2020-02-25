@@ -36,19 +36,27 @@ class AccessTokenSharedsecretChallenge:
         return
 
     def verify(self):
-        test_challenge_calc = Hash.hash(
-            string = self.challenge + self.shared_secret,
-            algo   = self.algo_hash
-        )
-        if test_challenge_calc != self.test_challenge:
-            Log.debug(
+        try:
+            test_challenge_calc = Hash.hash(
+                string = self.challenge + self.shared_secret,
+                algo   = self.algo_hash
+            )
+            if test_challenge_calc != self.test_challenge:
+                Log.warning(
+                    str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                    + ': Test Challenge Fail. Challenge string "' + str(self.challenge)
+                    + '". Test Challenge Calculated "' + str(test_challenge_calc)
+                    + '", test challenge given "' + str(self.test_challenge)
+                )
+                return False
+            return True
+        except Exception as ex:
+            Log.error(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                + ': Test Challenge Fail. Challenge string "' + str(self.challenge)
-                + '". Test Challenge Calculated "' + str(test_challenge_calc)
-                + '", test challenge given "' + str(self.test_challenge)
+                + ': Exception for shared secret "' + str(self.shared_secret)
+                + '", challenge "' + str(self.challenge) + '": ' + str(ex)
             )
             return False
-        return True
 
 
 if __name__ == '__main__':
