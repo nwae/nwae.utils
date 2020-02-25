@@ -27,7 +27,7 @@ class AccessTokenSharedsecretChallenge:
             challenge,
             # We compare this to our own calculation to verify if the same or not
             test_challenge,
-            algo_hash = Hash.ALGO_SHA1
+            algo_hash = Hash.ALGO_SHA256
     ):
         self.shared_secret = shared_secret
         self.challenge = challenge
@@ -57,7 +57,7 @@ if __name__ == '__main__':
 
     shared_secret = generate_random_string(n=100)
     challenge = generate_random_string(n=1000)
-    test_challenge = Hash.hash(string=challenge + shared_secret, algo=Hash.ALGO_SHA1)
+    test_challenge = Hash.hash(string=challenge + shared_secret, algo=Hash.ALGO_SHA256)
     print('Shared Secret: ' + str(shared_secret))
     print('Challenge: ' + str(challenge))
 
