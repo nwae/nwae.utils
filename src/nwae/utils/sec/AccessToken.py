@@ -24,10 +24,10 @@ class AccessTokenSharedsecretChallenge:
     def __init__(
             self,
             shared_secret,
-            # Random string sent to client as challenge
-            challenge,
             # We compare this to our own calculation to verify if the same or not
             test_challenge,
+            # Random string sent to client as challenge
+            challenge = None,
             algo_hash = Hash.ALGO_SHA256
     ):
         self.shared_secret = shared_secret
