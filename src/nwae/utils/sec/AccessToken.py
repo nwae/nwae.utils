@@ -36,6 +36,34 @@ class AccessTokenSharedsecretChallenge:
         self.algo_hash = algo_hash
         return
 
+    @staticmethod
+    def create_test_challenge_string(
+            shared_secret,
+            challenge_string,
+            algo_hash = Hash.ALGO_SHA256
+    ):
+        test_challenge = Hash.hash(
+            string = challenge_string + shared_secret,
+            algo   = algo_hash
+        )
+        return test_challenge
+
+    # For client to create
+    @staticmethod
+    def create_totp_style_challenge_response(
+            shared_secret,
+            datetime_val = None,
+            algo_hash = Hash.ALGO_SHA256
+    ):
+        if datetime_val is None:
+            datetime_val = datetime.now()
+        test_challenge = AccessTokenSharedsecretChallenge.create_test_challenge_string(
+            shared_secret    = shared_secret,
+            challenge_string = datetime_val.strftime('%Y-%m-%d %H:%M:%S'),
+            algo_hash        = algo_hash
+        )
+        return test_challenge
+
     #
     # No challenge, just receive authentication info from client in TOTP style
     # Client hashes/encrypts <timestamp> + <shared_secret>
@@ -48,16 +76,15 @@ class AccessTokenSharedsecretChallenge:
         now = datetime.now()
         try:
             for i in range(tolerance_secs):
-                td = timedelta(seconds=i)
-                t_test = now - td
-                s = t_test.strftime('%Y-%m-%d %H:%M:%S')
+                t_test = now - timedelta(seconds=i)
                 Log.debugdebug(
                     str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                    + ': Trying ' + str(s)
+                    + ': Trying ' + str(t_test.strftime('%Y-%m-%d %H:%M:%S'))
                 )
-                test_challenge_calc = Hash.hash(
-                    string = s + shared_secret,
-                    algo   = self.algo_hash
+                test_challenge_calc = AccessTokenSharedsecretChallenge.create_totp_style_challenge_response(
+                    shared_secret = self.shared_secret,
+                    datetime_val  = t_test,
+                    algo_hash     = self.algo_hash
                 )
                 res = self.__compare_test_challenge(
                     test_challenge_calc = test_challenge_calc
@@ -78,9 +105,10 @@ class AccessTokenSharedsecretChallenge:
     #
     def verify(self):
         try:
-            test_challenge_calc = Hash.hash(
-                string = self.challenge + self.shared_secret,
-                algo   = self.algo_hash
+            test_challenge_calc = AccessTokenSharedsecretChallenge.create_test_challenge_string(
+                shared_secret    = self.shared_secret,
+                challenge_string = self.challenge,
+                algo_hash        = self.algo_hash
             )
             return self.__compare_test_challenge(
                 test_challenge_calc = test_challenge_calc
@@ -122,20 +150,26 @@ if __name__ == '__main__':
         challenge      = challenge,
         test_challenge = test_challenge
     )
-    print('Verify: ' + str(obj.verify()))
+    print('Verify (expect True): ' + str(obj.verify()))
 
     obj.test_challenge = 'asdfasd'
-    print('Verify: ' + str(obj.verify()))
+    print('Verify (expect False): ' + str(obj.verify()))
 
     #
     # Verify TOTP style
     #
-    now = datetime.now() - timedelta(seconds=5)
-    s = now.strftime('%Y-%m-%d %H:%M:%S')
-    test_challenge = Hash.hash(string=s + shared_secret, algo=Hash.ALGO_SHA256)
+    obj.test_challenge = AccessTokenSharedsecretChallenge.create_totp_style_challenge_response(
+        shared_secret = shared_secret,
+        datetime_val = datetime.now() - timedelta(seconds=20)
+    )
+    print('Client test challenge=' + str(obj.test_challenge))
+    print('Verify (expect True): ' + str(obj.verify_totp_style()))
 
-    print('s=' + str(s) + ', test challenge=' + str(test_challenge))
-    obj.test_challenge = test_challenge
-    print('Verify: ' + str(obj.verify_totp_style()))
+    obj.test_challenge = AccessTokenSharedsecretChallenge.create_totp_style_challenge_response(
+        shared_secret = shared_secret,
+        datetime_val = datetime.now() - timedelta(seconds=35)
+    )
+    print('Client test challenge=' + str(obj.test_challenge))
+    print('Verify (expect False): ' + str(obj.verify_totp_style()))
 
     exit(0)
