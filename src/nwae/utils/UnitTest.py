@@ -4,6 +4,11 @@ import nwae.utils.Log as lg
 from inspect import getframeinfo, currentframe
 
 
+#
+# Don't run actual unit tests of nwae.utils here (they are run in the nwae project)
+# as this provides only unit test utilities, and importing modules to run unit tests
+# will likely cause circular imports.
+#
 class UnitTestParams:
     def __init__(
             self,
