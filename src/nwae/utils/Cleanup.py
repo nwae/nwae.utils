@@ -54,7 +54,12 @@ class Cleanup:
 
                 if age_secs > self.max_age_secs:
                     os.remove(self.folder + '/' + file)
-                    lg.Log.important('File "' + str(file) + '" removed, aged ' + str(round(age_secs/86400,2)) + ' days.')
+                    lg.Log.important(
+                        str(self.__class__) + str(getframeinfo(currentframe()).lineno)
+                        +': File "' + str(file) + '" removed, aged '
+                        + str(round(age_secs/86400,2)) + ' days ('
+                        + str(round(age_secs,0)) + 's)'
+                    )
         except Exception as ex:
             errmsg = str(self.__class__) + str(getframeinfo(currentframe()).lineno)\
                      + ': Error removing old files from folder "' + str(self.folder)\
