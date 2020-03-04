@@ -64,6 +64,25 @@ class AccessTokenSharedsecretChallenge:
         )
         return test_challenge
 
+    # For client to create
+    @staticmethod
+    def create_totp_otp(
+            shared_secret
+    ):
+        import pyotp
+        totp_client = pyotp.TOTP(shared_secret)
+        otp = totp_client.now()
+        return otp
+
+    def verify_totp_otp(
+            self
+    ):
+        import pyotp
+        totp_obj = pyotp.TOTP(self.shared_secret)
+        return totp_obj.verify(
+            otp = self.test_challenge
+        )
+
     #
     # No challenge, just receive authentication info from client in TOTP style
     # Client hashes/encrypts <timestamp> + <shared_secret>
@@ -171,5 +190,25 @@ if __name__ == '__main__':
     )
     print('Client test challenge=' + str(obj.test_challenge))
     print('Verify (expect False): ' + str(obj.verify_totp_style()))
+
+    #
+    # Verify TOTP
+    #
+    import pyotp
+    shared_secret_base32 = pyotp.random_base32()
+    obj.shared_secret = shared_secret_base32
+    print('Random base 32 secret = ' + str(shared_secret_base32))
+    obj.test_challenge = AccessTokenSharedsecretChallenge.create_totp_otp(
+        shared_secret = shared_secret_base32
+    )
+    print('Client OTP=' + str(obj.test_challenge))
+    print('Verify (expect True): ' + str(obj.verify_totp_otp()))
+
+    obj.test_challenge = AccessTokenSharedsecretChallenge.create_totp_otp(
+        shared_secret = shared_secret_base32
+    )
+    obj.test_challenge = 293847
+    print('Client test challenge=' + str(obj.test_challenge))
+    print('Verify (expect False): ' + str(obj.verify_totp_otp()))
 
     exit(0)
