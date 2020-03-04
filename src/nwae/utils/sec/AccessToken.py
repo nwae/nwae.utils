@@ -75,13 +75,24 @@ class AccessTokenSharedsecretChallenge:
         return otp
 
     def verify_totp_otp(
-            self
+            self,
+            valid_window = 1
     ):
-        import pyotp
-        totp_obj = pyotp.TOTP(self.shared_secret)
-        return totp_obj.verify(
-            otp = self.test_challenge
-        )
+        try:
+            import pyotp
+            totp_obj = pyotp.TOTP(self.shared_secret)
+            res =  totp_obj.verify(
+                otp = self.test_challenge,
+                valid_window = valid_window
+            )
+            # print('Secret=' + str(self.shared_secret) + ', otp=' + str(self.test_challenge) + ' ' + str(res))
+            return res
+        except Exception as ex:
+            Log.error(
+                str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                + ': Error TOTP authentication, exception: ' + str(ex)
+            )
+            return False
 
     #
     # No challenge, just receive authentication info from client in TOTP style
