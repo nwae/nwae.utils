@@ -72,7 +72,7 @@ class AccessTokenSharedsecretChallenge:
         import pyotp
         s = str(shared_secret)
         # Pad to 8 modulo with last character in shared secret
-        shared_secret_pad = s + s[-1]*(8-len(s)%8)
+        shared_secret_pad = s + s[-1] * ((8 - len(s) % 8) % 8)
         totp_client = pyotp.TOTP(shared_secret_pad)
         otp = totp_client.now()
         return otp
@@ -85,7 +85,7 @@ class AccessTokenSharedsecretChallenge:
             import pyotp
             s = str(self.shared_secret)
             # Pad to 8 modulo with last character in shared secret
-            shared_secret_pad = s + s[-1] * (8 - len(s) % 8)
+            shared_secret_pad = s + s[-1] * ((8 - len(s) % 8) % 8)
             totp_obj = pyotp.TOTP(shared_secret_pad)
             res =  totp_obj.verify(
                 otp = self.test_challenge,
