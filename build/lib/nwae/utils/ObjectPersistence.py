@@ -118,6 +118,22 @@ class ObjectPersistence:
                             + ': Atomic update invalid mode "'+ str(mode) + '"!'
                         )
                         return False
+            elif type(self.obj) is list:
+                # In this mode, new items is only ONE item, otherwise you get unexpected results
+                if mode == ObjectPersistence.ATOMIC_UPDATE_MODE_ADD:
+                    self.obj.append(new_items)
+                    lg.Log.info(
+                        str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                        + ': Atomic update added new items ' + str(new_items)
+                    )
+                elif mode == ObjectPersistence.ATOMIC_UPDATE_MODE_REMOVE:
+                    if new_items in self.obj:
+                        self.obj.remove(new_items)
+                        lg.Log.error(
+                            str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                            + ': Atomic updates removed item "' + str(new_items)
+                            + str(type(self.obj)) + '"!'
+                        )
             else:
                 lg.Log.error(
                     str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)

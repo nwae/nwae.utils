@@ -22,6 +22,7 @@ src/nwae/utils/UnitTest.py
 src/nwae/utils/data/BaseDataCache.py
 src/nwae/utils/networking/Ssl.py
 src/nwae/utils/networking/WebSocketClient.py
+src/nwae/utils/sec/AccessToken.py
 src/nwae/utils/sec/Encrypt.py
 src/nwae/utils/sec/OauthClient.py
 src/nwae/utils/sec/Totp.py

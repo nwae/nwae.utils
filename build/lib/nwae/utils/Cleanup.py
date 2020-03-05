@@ -32,11 +32,14 @@ class Cleanup:
     ):
         tnow = time.time()
         tnow_str = format(dt.datetime.fromtimestamp(tnow))
-        lg.Log.info('Removing old files from folder "' + self.folder + '" older than '
-                    + str(self.max_age_secs) + ' secs...')
+        lg.Log.debug(
+            str(self.__class__) + str(getframeinfo(currentframe()).lineno)
+            + ': Removing old files from folder "' + self.folder + '" older than '
+            + str(self.max_age_secs) + ' secs...'
+        )
         try:
             farr = os.listdir(self.folder)
-            lg.Log.info('Files in folder: ' + str(farr))
+            lg.Log.debug('Files in folder: ' + str(farr))
             for file in farr:
                 if not re.search(pattern=self.regex, string=file):
                     # lg.Log.info('Ignoring file "' + str(file) + '", not matching regex "' + str(self.regex) + '".')
@@ -45,7 +48,7 @@ class Cleanup:
                 updated_time_str = format(dt.datetime.fromtimestamp(updated_time))
                 age_secs = tnow - updated_time
 
-                lg.Log.info(
+                lg.Log.debug(
                     'Checking file "' + str(file) + '"..'
                     + '" last updated time ' + str(updated_time_str)
                     + ', age ' + str(round(age_secs/86400,2)) + ' days ('
@@ -54,7 +57,12 @@ class Cleanup:
 
                 if age_secs > self.max_age_secs:
                     os.remove(self.folder + '/' + file)
-                    lg.Log.important('File "' + str(file) + '" removed, aged ' + str(round(age_secs/86400,2)) + ' days.')
+                    lg.Log.important(
+                        str(self.__class__) + str(getframeinfo(currentframe()).lineno)
+                        +': File "' + str(file) + '" removed, aged '
+                        + str(round(age_secs/86400,2)) + ' days ('
+                        + str(round(age_secs,0)) + 's)'
+                    )
         except Exception as ex:
             errmsg = str(self.__class__) + str(getframeinfo(currentframe()).lineno)\
                      + ': Error removing old files from folder "' + str(self.folder)\
