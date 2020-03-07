@@ -8,6 +8,9 @@ import os
 
 class Log:
 
+    # Max log file size, 500M
+    LOG_FILE_MAX_SIZE_BYTES = 500 * 1024 * 1024
+
     #
     # Log Levels
     #
@@ -37,58 +40,86 @@ class Log:
     @staticmethod
     def critical(
             s,
-            encoding='utf-8',
-            log_list=None
+            encoding = 'utf-8',
+            log_list = None,
+            # For important & above, default behaviour won't limit file size
+            limit_file_size = False
     ):
-        Log.do_log_level(level=Log.LOG_LEVEL_CRITICAL, s=s, encoding=encoding, log_list=log_list)
+        Log.do_log_level(
+            level=Log.LOG_LEVEL_CRITICAL, s=s, encoding=encoding, log_list=log_list, limit_file_size=limit_file_size
+        )
 
     @staticmethod
     def error(
             s,
-            encoding='utf-8',
-            log_list=None
+            encoding = 'utf-8',
+            log_list = None,
+            # For important & above, default behaviour won't limit file size
+            limit_file_size = False
     ):
-        Log.do_log_level(level=Log.LOG_LEVEL_ERROR, s=s, encoding=encoding, log_list=log_list)
+        Log.do_log_level(
+            level=Log.LOG_LEVEL_ERROR, s=s, encoding=encoding, log_list=log_list, limit_file_size=limit_file_size
+        )
 
     @staticmethod
     def warning(
             s,
-            encoding='utf-8',
-            log_list=None
+            encoding = 'utf-8',
+            log_list = None,
+            # For important & above, default behaviour won't limit file size
+            limit_file_size = False
     ):
-        Log.do_log_level(level=Log.LOG_LEVEL_WARNING, s=s, encoding=encoding, log_list=log_list)
+        Log.do_log_level(
+            level=Log.LOG_LEVEL_WARNING, s=s, encoding=encoding, log_list=log_list, limit_file_size=limit_file_size
+        )
 
     @staticmethod
     def important(
             s,
-            encoding='utf-8',
-            log_list=None
+            encoding = 'utf-8',
+            log_list = None,
+            # For important & above, default behaviour won't limit file size
+            limit_file_size = False
     ):
-        Log.do_log_level(level=Log.LOG_LEVEL_IMPORTANT, s=s, encoding=encoding, log_list=log_list)
+        Log.do_log_level(
+            level=Log.LOG_LEVEL_IMPORTANT, s=s, encoding=encoding, log_list=log_list, limit_file_size=limit_file_size
+        )
 
     @staticmethod
     def info(
             s,
-            encoding='utf-8',
-            log_list=None
+            encoding = 'utf-8',
+            log_list = None,
+            # For info & below default behaviour will limit file size
+            limit_file_size = True
     ):
-        Log.do_log_level(level=Log.LOG_LEVEL_INFO, s=s, encoding=encoding, log_list=log_list)
+        Log.do_log_level(
+            level=Log.LOG_LEVEL_INFO, s=s, encoding=encoding, log_list=log_list, limit_file_size=limit_file_size
+        )
 
     @staticmethod
     def debug(
             s,
-            encoding='utf-8',
-            log_list=None
+            encoding = 'utf-8',
+            log_list = None,
+            # For info & below default behaviour will limit file size
+            limit_file_size = True
     ):
-        Log.do_log_level(level=Log.LOG_LEVEL_DEBUG_1, s=s, encoding=encoding, log_list=log_list)
+        Log.do_log_level(
+            level=Log.LOG_LEVEL_DEBUG_1, s=s, encoding=encoding, log_list=log_list, limit_file_size=limit_file_size
+        )
 
     @staticmethod
     def debugdebug(
             s,
-            encoding='utf-8',
-            log_list=None
+            encoding = 'utf-8',
+            log_list = None,
+            # For info & below default behaviour will limit file size
+            limit_file_size = True
     ):
-        Log.do_log_level(level=Log.LOG_LEVEL_DEBUG_2, s=s, encoding=encoding, log_list=log_list)
+        Log.do_log_level(
+            level=Log.LOG_LEVEL_DEBUG_2, s=s, encoding=encoding, log_list=log_list, limit_file_size=limit_file_size
+        )
 
     @staticmethod
     def get_level_string_prefix(level):
@@ -114,7 +145,8 @@ class Log:
             level,
             s,
             encoding = 'utf-8',
-            log_list = None
+            log_list = None,
+            limit_file_size = False
     ):
         if Log.LOGLEVEL >= level:
             prefix = Log.get_level_string_prefix(level=level)
@@ -122,7 +154,8 @@ class Log:
             Log.log(
                 s = logmsg,
                 encoding = encoding,
-                log_list = log_list
+                log_list = log_list,
+                limit_file_size = limit_file_size
             )
 
     @staticmethod
@@ -130,7 +163,8 @@ class Log:
             s,
             encoding = 'utf-8',
             # Append log here if type is list
-            log_list = None
+            log_list = None,
+            limit_file_size = False
     ):
         if s is None:
             return
@@ -164,14 +198,47 @@ class Log:
             else:
                 f = open(file=logfile_name_today_date_prefix, mode='w', encoding=encoding)
 
-            f.write(timestamp + ': ' + s + '\n')
+            # Check file size
+            fsize_bytes = os.path.getsize(logfile_name_today_date_prefix)
+            fsize_mb = round(fsize_bytes/(1024*1024),2)
+            limit_size_mb = round(Log.LOG_FILE_MAX_SIZE_BYTES/(1024*1024),2)
+            # print('File size = ' + str(fsize_mb) + 'kB. Limit = ' + str(limit_size_mb) + 'MB')
+
+            prefix_str = str(timestamp) + ': '
+            if fsize_bytes > Log.LOG_FILE_MAX_SIZE_BYTES:
+                # When exceed log size limit, we print the log file size
+                prefix_str = str(timestamp) + '(' + str(fsize_mb) + 'MB): '
+
+            if not limit_file_size:
+                f.write(prefix_str + s + '\n')
+            else:
+                if fsize_bytes <= Log.LOG_FILE_MAX_SIZE_BYTES:
+                    f.write(prefix_str + s + '\n')
+                else:
+                    # Print to screen, no more logging to file
+                    print(
+                        timestamp + ': Log file "' + str(logfile_name_today_date_prefix)
+                        + '" size ' + str(fsize_mb)
+                        + 'MB exceed limit of ' + str(limit_size_mb) + 'MB\n'
+                    )
+
             f.close()
         except Exception as ex:
             errmsg = 'Log file [' + logfile_name_today_date_prefix\
-                     + '] don''t exist!. Exception message "' + str(ex)
+                     + '] error!. Exception message "' + str(ex)
             print(errmsg)
-            raise Exception(errmsg)
 
 
 if __name__ == '__main__':
-    Log.info('Test log info...')
+    Log.LOGFILE = '/tmp/test.log.file'
+    Log.LOG_FILE_MAX_SIZE_BYTES = 30*1024
+
+    for i in range(60):
+        s = 'Test log ' + str(i)
+        Log.debugdebug(s = s)
+        Log.debug(s = s)
+        Log.info(s = s)
+        Log.important(s = s)
+        Log.warning(s = s)
+        Log.error(s = s)
+        Log.critical(s = s)
