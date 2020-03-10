@@ -232,7 +232,7 @@ class BaseConfig:
                 linelist.append(line)
 
             for line in linelist:
-                arg_split = line.split('=')
+                arg_split = line.split('=', maxsplit=1)
                 lg.Log.debugdebug(
                     str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
                     + ': Read line "' + str(line) + '", split to ' + str(arg_split)
