@@ -8,8 +8,8 @@ import os
 
 class Log:
 
-    # Max log file size, 500M
-    LOG_FILE_MAX_SIZE_BYTES = 500 * 1024 * 1024
+    # Default max log file size, 100MB
+    LOG_FILE_MAX_SIZE_BYTES = 100 * 1024 * 1024
 
     #
     # Log Levels
