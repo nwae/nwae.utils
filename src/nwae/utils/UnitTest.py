@@ -18,7 +18,8 @@ class UnitTestParams:
             postfix_app_wordlist = None,
             dirpath_synonymlist  = None,
             postfix_synonymlist  = None,
-            dirpath_model        = None
+            dirpath_model        = None,
+            dirpath_sample_data  = None,
     ):
         self.dirpath_wordlist = dirpath_wordlist
         self.postfix_wordlist = postfix_wordlist
@@ -27,6 +28,7 @@ class UnitTestParams:
         self.dirpath_synonymlist = dirpath_synonymlist
         self.postfix_synonymlist = postfix_synonymlist
         self.dirpath_model = dirpath_model
+        self.dirpath_sample_data = dirpath_sample_data
 
     def to_string(self):
         return 'Dir Wordlist "' + str(self.dirpath_wordlist)\
@@ -35,7 +37,9 @@ class UnitTestParams:
                + '", Postfix App Wordlist "' + str(self.postfix_app_wordlist)\
                + '", Dir Synonym List "' + str(self.dirpath_synonymlist)\
                + '", Postfix Synonym List "' + str(self.postfix_synonymlist)\
-               + '", Dir Model "' + str(self.dirpath_model) + '"'
+               + '", Dir Model "' + str(self.dirpath_model)\
+               + '", Dir Sample Data "' + str(self.dirpath_sample_data)\
+               + '"'
 
 
 class ResultObj:
