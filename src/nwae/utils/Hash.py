@@ -60,7 +60,8 @@ class Hash:
         uni_len = unicode_range[1] - unicode_range[0] + 1
 
         if len(hash_hex_string)%4 != 0:
-            raise Exception('Hash length ' + str(len(hash_hex_string)) + '"' + str(hash_hex_string) + '" not 0 modulo-4')
+            raise Exception('Hash length ' + str(len(hash_hex_string))
+                            + ' for "' + str(hash_hex_string) + '" not 0 modulo-4')
 
         hash_zh = ''
         len_block = int( len(hash_hex_string) / 4 )
