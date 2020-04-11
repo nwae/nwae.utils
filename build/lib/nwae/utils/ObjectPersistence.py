@@ -33,7 +33,7 @@ class ObjectPersistence:
         # Read once from storage
         self.obj = None
         self.obj = self.read_persistent_object()
-        lg.Log.info(
+        lg.Log.debug(
             str(__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
             + ': New object persistence created from "' + str(self.obj_file_path)
             + '", lock file "' + str(self.lock_file_path) + '" as: ' + str(self.obj)
