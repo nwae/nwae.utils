@@ -2,6 +2,7 @@
 
 import hashlib
 from nwae.utils.Log import Log
+from inspect import getframeinfo, currentframe
 
 
 class Hash:
@@ -16,6 +17,9 @@ class Hash:
     ALGO_LIST = [
         ALGO_SHA1, ALGO_SHA256, ALGO_SHA512, ALGO_SHA3_256, ALGO_SHA3_512
     ]
+
+    BLOCK_CHINESE    = (0x4e00, 0x9fff) # CJK Unified Ideographs
+    BLOCK_KOREAN_SYL = (0xAC00, 0xD7AF) # Korean syllable block
 
     def __init__(self):
         return
@@ -41,10 +45,39 @@ class Hash:
                 raise Exception('Unsupported hash algo "' + str(algo) + '".')
             return h.hexdigest()
         except Exception as ex:
-            errmsg = 'Error hashing string "' + str(string) + '" using algo "' + str(algo)\
+            errmsg = str(__name__) + ' ' + str() \
+                     + 'Error hashing string "' + str(string) + '" using algo "' + str(algo)\
                      + '". Exception: ' + str(ex)
             Log.error(errmsg)
             return None
+
+    @staticmethod
+    def convert_hash_to_char(
+            hash_hex_string,
+            # Default to CJK Unicode Block
+            unicode_range = BLOCK_CHINESE
+    ):
+        uni_len = unicode_range[1] - unicode_range[0] + 1
+
+        if len(hash_hex_string)%4 != 0:
+            raise Exception('Hash length ' + str(len(hash_hex_string)) + '"' + str(hash_hex_string) + '" not 0 modulo-4')
+
+        hash_zh = ''
+        len_block = int( len(hash_hex_string) / 4 )
+        for i in range(0, len_block, 1):
+            idx_start = 4*i
+            idx_end = idx_start + 4
+            s = hash_hex_string[idx_start:idx_end]
+            # Convert to Chinese
+            n = int('0x' + str(s), 16)
+            cjk_unicode = ( n % uni_len ) + unicode_range[0]
+            hash_zh += chr(cjk_unicode)
+            Log.debugdebug(
+                'From ' + str(idx_start) + ': ' + str(s)
+                + ', n=' + str(n) + ', char=' + str(chr(cjk_unicode))
+            )
+
+        return hash_zh
 
 
 if __name__ == '__main__':
@@ -52,4 +85,10 @@ if __name__ == '__main__':
     for algo in Hash.ALGO_LIST:
         # In Linux command line, echo -n "$s" | shasum -a 1 (or 256,512)
         print('Using algo "' + str(algo) + '":')
-        print(Hash.hash(string=s, algo=algo))
+        hstr = Hash.hash(string=s, algo=algo)
+        print(hstr)
+        hstr_cn = Hash.convert_hash_to_char(
+            hash_hex_string = hstr,
+            # unicode_range   = Hash.BLOCK_KOREAN_SYL
+        )
+        print(hstr_cn)
