@@ -15,6 +15,22 @@ STR_ENCODING = 'utf-8'
 
 class AES_Encrypt:
 
+    #
+    # Return object when encrypting
+    #
+    class EncryptRetClass:
+        def __init__(
+                self,
+                ciphertext_b64,
+                plaintext_b64,
+                tag_b64,
+                nonce_b64
+        ):
+            self.ciphertext_b64 = ciphertext_b64
+            self.plaintext_b64 = plaintext_b64
+            self.tag_b64 = tag_b64
+            self.nonce_b64 = nonce_b64
+
     DEFAULT_BLOCK_SIZE_AES_CBC = 16
     SIZE_NONCE = 16
 
@@ -39,19 +55,20 @@ class AES_Encrypt:
             key,
             nonce = None,
             mode = AES.MODE_EAX,
-            encoding = 'utf-8'
+            text_encoding = 'utf-8'
     ):
         self.key = key
         Log.debug('Using key ' + str(str(self.key)) + '. Size = ' + str(len(self.key)) + '.')
         self.cipher_mode = mode
         if nonce is None:
+            # Must be 16 bytes
             nonce = key[0:16]
             #nonce = AES_Encrypt.generate_random_bytes(size=AES_Encrypt.SIZE_NONCE, printable=True)
 
         self.nonce = nonce
         Log.debug('Using nonce "' + str(self.nonce) + '". Size = ' + str(len(self.nonce)))
 
-        self.encoding = encoding
+        self.text_encoding = text_encoding
         return
 
     def encode(
@@ -62,8 +79,13 @@ class AES_Encrypt:
         try:
             if self.cipher_mode == AES.MODE_EAX:
                 cipher = AES.new(key=self.key, mode=self.cipher_mode, nonce=self.nonce)
-                ciphertext, tag = cipher.encrypt_and_digest(data)
-                return b64encode(ciphertext).decode(self.encoding)
+                cipherbytes, tag = cipher.encrypt_and_digest(data)
+                return AES_Encrypt.EncryptRetClass(
+                    ciphertext_b64 = b64encode(cipherbytes).decode(self.text_encoding),
+                    plaintext_b64  = None,
+                    tag_b64        = b64encode(tag).decode(self.text_encoding),
+                    nonce_b64      = b64encode(self.nonce).decode(self.text_encoding)
+                )
             elif self.cipher_mode == AES.MODE_CBC:
                 # 1-16, make sure not 0, other wise last byte will not be block length
                 length = AES_Encrypt.DEFAULT_BLOCK_SIZE_AES_CBC - (len(data) % AES_Encrypt.DEFAULT_BLOCK_SIZE_AES_CBC)
@@ -75,8 +97,13 @@ class AES_Encrypt:
                     + ': Padded length = ' + str(length)
                 )
                 cipher = AES.new(key=self.key, mode=self.cipher_mode, iv=self.nonce)
-                ciphertext = cipher.encrypt(data)
-                return b64encode(ciphertext).decode(self.encoding)
+                cipherbytes = cipher.encrypt(data)
+                return AES_Encrypt.EncryptRetClass(
+                    ciphertext_b64 = b64encode(cipherbytes).decode(self.text_encoding),
+                    plaintext_b64  = None,
+                    tag_b64        = None,
+                    nonce_b64      = b64encode(self.nonce).decode(self.text_encoding)
+                )
             else:
                 raise Exception(
                     str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
@@ -95,11 +122,11 @@ class AES_Encrypt:
         try:
             if self.cipher_mode == AES.MODE_EAX:
                 cipher = AES.new(key=self.key, mode=self.cipher_mode, nonce=self.nonce)
-                cipherbytes = b64decode(ciphertext.encode(self.encoding))
+                cipherbytes = b64decode(ciphertext.encode(self.text_encoding))
                 data = cipher.decrypt(cipherbytes)
             elif self.cipher_mode == AES.MODE_CBC:
                 cipher = AES.new(key=self.key, mode=self.cipher_mode, iv=self.nonce)
-                cipherbytes = b64decode(ciphertext.encode(self.encoding))
+                cipherbytes = b64decode(ciphertext.encode(self.text_encoding))
                 data = cipher.decrypt(cipherbytes)
                 Log.debugdebug(
                     str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
@@ -142,38 +169,42 @@ class EncryptUnitTest:
 
         key = b'Sixteen byte key'
         nonce = b'0123456789xxyyzz'
-        # aes_obj = AES_Encrypt(key=AES_Encrypt.generate_random_bytes(size=32, printable=True))
-        aes_obj = AES_Encrypt(
-            key=key + key,
-            mode=AES.MODE_CBC,
-            nonce=nonce
-        )
-        for s in sentences:
-            Log.debug('Encrypting "' + str(s) + '"')
-            data_bytes = bytes(s.encode(encoding=STR_ENCODING))
-            Log.debug('Data length in bytes = ' + str(len(data_bytes)))
-            ciphertext = aes_obj.encode(
-                data=data_bytes
+
+        for mode in [AES.MODE_CBC, AES.MODE_EAX]:
+            # aes_obj = AES_Encrypt(key=AES_Encrypt.generate_random_bytes(size=32, printable=True))
+            aes_obj = AES_Encrypt(
+                key   = key + key,
+                mode  = mode,
+                nonce = nonce
             )
-            Log.debug('Encrypted as "' + str(ciphertext) + '"')
+            for s in sentences:
+                Log.debug('Encrypting "' + str(s) + '"')
+                data_bytes = bytes(s.encode(encoding=STR_ENCODING))
+                Log.debug('Data length in bytes = ' + str(len(data_bytes)))
+                res = aes_obj.encode(
+                    data=data_bytes
+                )
+                ciphertext = res.ciphertext_b64
+                Log.debug('Encrypted as "' + str(ciphertext) + '"')
 
-            plaintext = aes_obj.decode(ciphertext=ciphertext)
-            Log.debug('Decrypted as "' + plaintext + '"')
+                plaintext = aes_obj.decode(ciphertext=ciphertext)
+                Log.debug('Decrypted as "' + plaintext + '"')
 
-            res_final.update_bool(res_bool=ut.UnitTest.assert_true(
-                observed = plaintext,
-                expected = s,
-                test_comment = '"' + str(s) + '" encrypted to "' + str(ciphertext)
-                               + '", decrypted back to "' + str(plaintext)
-            ))
+                res_final.update_bool(res_bool=ut.UnitTest.assert_true(
+                    observed = plaintext,
+                    expected = s,
+                    test_comment = 'mode "' + str(mode) + '" s=' + str(s)
+                                   + '" encrypted to "' + str(ciphertext)
+                                   + '", decrypted back to "' + str(plaintext)
+                ))
 
         return res_final
 
 
 if __name__ == '__main__':
-    res = EncryptUnitTest(ut_params=None).run_unit_test()
-
     Log.LOGLEVEL = Log.LOG_LEVEL_DEBUG_2
+
+    res = EncryptUnitTest(ut_params=None).run_unit_test()
 
     key_str = 'Sixteen byte key'
     aes_test = AES_Encrypt(
