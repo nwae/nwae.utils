@@ -24,11 +24,13 @@ class AES_Encrypt:
     class EncryptRetClass:
         def __init__(
                 self,
+                cipher_mode,
                 ciphertext_b64,
                 plaintext_b64,
                 tag_b64,
                 nonce_b64
         ):
+            self.cipher_mode = cipher_mode
             self.ciphertext_b64 = ciphertext_b64
             self.plaintext_b64 = plaintext_b64
             self.tag_b64 = tag_b64
@@ -96,6 +98,7 @@ class AES_Encrypt:
                 cipher = AES.new(key=self.key, mode=self.cipher_mode, nonce=self.nonce)
                 cipherbytes, tag = cipher.encrypt_and_digest(data)
                 return AES_Encrypt.EncryptRetClass(
+                    cipher_mode    = self.cipher_mode_str,
                     ciphertext_b64 = b64encode(cipherbytes).decode(self.text_encoding),
                     plaintext_b64  = None,
                     tag_b64        = b64encode(tag).decode(self.text_encoding),
@@ -114,6 +117,7 @@ class AES_Encrypt:
                 cipher = AES.new(key=self.key, mode=self.cipher_mode, iv=self.nonce)
                 cipherbytes = cipher.encrypt(data)
                 return AES_Encrypt.EncryptRetClass(
+                    cipher_mode    = self.cipher_mode_str,
                     ciphertext_b64 = b64encode(cipherbytes).decode(self.text_encoding),
                     plaintext_b64  = None,
                     tag_b64        = None,
@@ -145,7 +149,7 @@ class AES_Encrypt:
                 data = cipher.decrypt(cipherbytes)
                 Log.debugdebug(
                     str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                    + 'Decrypted data length = ' + str(len(data)) + ', modulo 16 = ' + str(len(data) % 128/8)
+                    + ': Decrypted data length = ' + str(len(data)) + ', modulo 16 = ' + str(len(data) % 128/8)
                 )
                 # Remove last x bytes encoded in the padded bytes
                 data = data[:-data[-1]]
