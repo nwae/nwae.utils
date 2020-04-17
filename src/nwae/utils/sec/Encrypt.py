@@ -15,6 +15,9 @@ STR_ENCODING = 'utf-8'
 
 class AES_Encrypt:
 
+    AES_MODE_EAX = 'aes.eax'
+    AES_MODE_CBC = 'aes.cbc'
+
     #
     # Return object when encrypting
     #
@@ -54,19 +57,31 @@ class AES_Encrypt:
             # 16 or 32 byte key
             key,
             nonce = None,
-            mode = AES.MODE_EAX,
+            mode = AES_MODE_EAX,
             text_encoding = 'utf-8'
     ):
         self.key = key
         Log.debug('Using key ' + str(str(self.key)) + '. Size = ' + str(len(self.key)) + '.')
-        self.cipher_mode = mode
+        self.cipher_mode_str = mode
+        if self.cipher_mode_str == AES_Encrypt.AES_MODE_EAX:
+            self.cipher_mode = AES.MODE_EAX
+        elif self.cipher_mode_str == AES_Encrypt.AES_MODE_CBC:
+            self.cipher_mode = AES.MODE_CBC
+        else:
+            raise Exception(
+                str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                + ': Unsupported AES mode "' + str(self.cipher_mode_str) + '"'
+            )
         if nonce is None:
             # Must be 16 bytes
-            nonce = key[0:16]
-            #nonce = AES_Encrypt.generate_random_bytes(size=AES_Encrypt.SIZE_NONCE, printable=True)
+            # nonce = key[0:16]
+            nonce = AES_Encrypt.generate_random_bytes(size=AES_Encrypt.SIZE_NONCE, printable=True)
 
         self.nonce = nonce
-        Log.debug('Using nonce "' + str(self.nonce) + '". Size = ' + str(len(self.nonce)))
+        Log.debug(
+            str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+            + ': Using nonce "' + str(self.nonce) + '". Size = ' + str(len(self.nonce))
+        )
 
         self.text_encoding = text_encoding
         return
@@ -93,7 +108,7 @@ class AES_Encrypt:
                 # as length of data block
                 data += bytes(chr(length), encoding=STR_ENCODING) * length
                 Log.debugdebug(
-                    str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                    str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
                     + ': Padded length = ' + str(length)
                 )
                 cipher = AES.new(key=self.key, mode=self.cipher_mode, iv=self.nonce)
@@ -106,14 +121,14 @@ class AES_Encrypt:
                 )
             else:
                 raise Exception(
-                    str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                    str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
                     + ': Unsupported mode "' + str(self.cipher_mode) + '".'
                 )
         except Exception as ex:
             errmsg = str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno) \
                     + ': Error encoding data "' + str(data) + '" using AES ". Exception: ' + str(ex)
             Log.error(errmsg)
-            return None
+            raise Exception(errmsg)
 
     def decode(
             self,
@@ -129,14 +144,14 @@ class AES_Encrypt:
                 cipherbytes = b64decode(ciphertext.encode(self.text_encoding))
                 data = cipher.decrypt(cipherbytes)
                 Log.debugdebug(
-                    str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                    str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
                     + 'Decrypted data length = ' + str(len(data)) + ', modulo 16 = ' + str(len(data) % 128/8)
                 )
                 # Remove last x bytes encoded in the padded bytes
                 data = data[:-data[-1]]
             else:
                 raise Exception(
-                    str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                    str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
                     + ': Unsupported mode "' + str(self.cipher_mode) + '".'
                 )
 
@@ -145,7 +160,7 @@ class AES_Encrypt:
             errmsg = str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno) \
                     + ': Error decoding data "' + str(ciphertext) + '" using AES ". Exception: ' + str(ex)
             Log.error(errmsg)
-            return None
+            raise Exception(errmsg)
 
 
 class EncryptUnitTest:
@@ -170,7 +185,7 @@ class EncryptUnitTest:
         key = b'Sixteen byte key'
         nonce = b'0123456789xxyyzz'
 
-        for mode in [AES.MODE_CBC, AES.MODE_EAX]:
+        for mode in [AES_Encrypt.AES_MODE_CBC, AES_Encrypt.AES_MODE_EAX]:
             # aes_obj = AES_Encrypt(key=AES_Encrypt.generate_random_bytes(size=32, printable=True))
             aes_obj = AES_Encrypt(
                 key   = key + key,
@@ -207,14 +222,17 @@ if __name__ == '__main__':
     res = EncryptUnitTest(ut_params=None).run_unit_test()
 
     key_str = 'Sixteen byte key'
+    s = '0077788'
+    ciphertext_b64 = '2zNslaKcIy9iqeVo8i5whQ=='
+    nonce_b64 = 'PNCt4LieRuC4v+OFnF\/tkw=='
+
     aes_test = AES_Encrypt(
         key   = key_str.encode('utf-8'),
-        mode  = AES.MODE_CBC
+        mode  = AES_Encrypt.AES_MODE_CBC,
+        nonce = b64decode(nonce_b64.encode(encoding='utf-8'))
     )
 
-    s = '0077788'
-    ciphertext = 'mRRYsZfIas4UwjlIy5wB7w=='
     plaintext = aes_test.decode(
-        ciphertext = ciphertext
+        ciphertext = ciphertext_b64
     )
     print(plaintext)
