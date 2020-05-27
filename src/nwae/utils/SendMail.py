@@ -66,8 +66,8 @@ class SendMail:
 
 
 if __name__ == '__main__':
-    user = 'nwae@gmail.com'
-    receivers = ('mapktah@mail.ru')
+    user = 'user@gmail.com'
+    receivers = ('mapktah@ya.ru')
 
     message = """From: From Kim Bon <kimbon@gmail.com>
     To: To All
@@ -79,7 +79,7 @@ if __name__ == '__main__':
     mail = SendMail()
     mail.send(
         user = user,
-        password = '',
+        password = 'password123',
         recipients_list = receivers,
         message = message
     )
