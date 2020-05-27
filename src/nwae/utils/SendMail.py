@@ -13,18 +13,27 @@ class SendMail:
     GMAIL_SMTP = 'smtp.gmail.com'
 
     def __init__(
-            self
+            self,
+            mode = 'smtp'
     ):
+        self.mode = mode
         self.__init_smtp()
         return
 
     def __init_smtp(self):
-        # Create a secure SSL context
-        #self.context = ssl.create_default_context()
-        #self.server = smtplib.SMTP_SSL(SendMail.GMAIL_SMTP, SendMail.PORT_SSL, context=self.context)
-        self.server = smtplib.SMTP(host=SendMail.GMAIL_SMTP, port=SendMail.PORT_SMTP)
-        self.server.ehlo()
-        self.server.starttls()
+        if self.mode == 'ssl':
+            # Create a secure SSL context
+            # self.context = ssl.create_default_context()
+            self.server = smtplib.SMTP_SSL(
+                host = SendMail.GMAIL_SMTP,
+                port = SendMail.PORT_SSL,
+                # context=self.context
+            )
+            self.server.ehlo()
+        else:
+            self.server = smtplib.SMTP(host=SendMail.GMAIL_SMTP, port=SendMail.PORT_SMTP)
+            self.server.ehlo()
+            self.server.starttls()
         Log.important(
             str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
             + ': SMTP SSL successfully initialized.'
@@ -43,7 +52,7 @@ class SendMail:
                 user = user,
                 password = password
             )
-            Log.info(
+            Log.important(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
                 + ': Login for user "' + str(user) + '" successful.'
             )
@@ -52,11 +61,12 @@ class SendMail:
                 to_addrs  = recipients_list,
                 msg       = message
             )
-            Log.info(
+            Log.important(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
                 + ': Message from '+ str(user) + ' to ' + str(recipients_list)
                 + ' sent successfully.'
             )
+            self.server.close()
         except Exception as ex:
             errmsg = str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)\
                      + ': Exception sending mail from ' + str(user) + ' to ' + str(recipients_list)\
