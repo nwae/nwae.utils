@@ -12,6 +12,17 @@ class SendMail:
     PORT_SMTP = 587
     GMAIL_SMTP = 'smtp.gmail.com'
 
+    @staticmethod
+    def prepare_message(
+            from_addr,
+            to_addrs_list,
+            subject,
+            text
+    ):
+        message = """From: %s\nTo: %s\nSubject: %s\n\n%s
+            """ % (from_addr, ", ".join(to_addrs_list), subject, text)
+        return message
+
     def __init__(
             self,
             mode = 'smtp'
@@ -76,15 +87,23 @@ class SendMail:
 
 
 if __name__ == '__main__':
-    user = 'user@gmail.com'
+    user = '?@gmail.com'
     receivers = ('mapktah@ya.ru')
+    subject = 'Test mail Python'
+    text = 'Test message from Python client'
+    message = SendMail.prepare_message(
+        from_addr = user,
+        to_addrs_list = receivers,
+        subject = subject,
+        text = text
+    )
 
-    message = """From: From Kim Bon <kimbon@gmail.com>
-    To: To All
-    Subject: SMTP e-mail test
-
-    This is a test e-mail message.
-    """
+    # message = """From: From Kim Bon <kimbon@gmail.com>
+    # To: To All
+    # Subject: SMTP e-mail test
+    #
+    # This is a test e-mail message.
+    # """
 
     mail = SendMail()
     mail.send(
