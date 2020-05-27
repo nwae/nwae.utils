@@ -9,18 +9,22 @@ from inspect import getframeinfo, currentframe
 class SendMail:
 
     PORT_SSL = 465
+    PORT_SMTP = 587
     GMAIL_SMTP = 'smtp.gmail.com'
 
     def __init__(
             self
     ):
-        self.__init_ssl()
+        self.__init_smtp()
         return
 
-    def __init_ssl(self):
+    def __init_smtp(self):
         # Create a secure SSL context
-        self.context = ssl.create_default_context()
-        self.server = smtplib.SMTP_SSL(SendMail.GMAIL_SMTP, SendMail.PORT_SSL, context=self.context)
+        #self.context = ssl.create_default_context()
+        #self.server = smtplib.SMTP_SSL(SendMail.GMAIL_SMTP, SendMail.PORT_SSL, context=self.context)
+        self.server = smtplib.SMTP(host=SendMail.GMAIL_SMTP, port=SendMail.PORT_SMTP)
+        self.server.ehlo()
+        self.server.starttls()
         Log.important(
             str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
             + ': SMTP SSL successfully initialized.'
@@ -62,8 +66,8 @@ class SendMail:
 
 
 if __name__ == '__main__':
-    user = '705270564@gmail.com'
-    receivers = ('705270564@qq.com')
+    user = 'nwae@gmail.com'
+    receivers = ('mapktah@mail.ru')
 
     message = """From: From Kim Bon <kimbon@gmail.com>
     To: To All
