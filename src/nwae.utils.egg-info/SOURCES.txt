@@ -6,6 +6,7 @@ src/nwae.utils.egg-info/top_level.txt
 src/nwae/utils/BaseConfig.py
 src/nwae/utils/Cleanup.py
 src/nwae/utils/CmdLine.py
+src/nwae/utils/EmailAlerts.py
 src/nwae/utils/Encode.py
 src/nwae/utils/FileUtils.py
 src/nwae/utils/Hash.py
