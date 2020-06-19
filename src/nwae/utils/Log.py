@@ -215,12 +215,13 @@ class Log:
                 if fsize_bytes <= Log.LOG_FILE_MAX_SIZE_BYTES:
                     f.write(prefix_str + s + '\n')
                 else:
-                    # Print to screen, no more logging to file
-                    print(
-                        timestamp + ': Log file "' + str(logfile_name_today_date_prefix)
-                        + '" size ' + str(fsize_mb)
-                        + 'MB exceed limit of ' + str(limit_size_mb) + 'MB\n'
-                    )
+                    pass
+                    # No more logging to file, don't print anything as it might fill up stdout/stderr files
+                    # print(
+                    #     timestamp + ': Log file "' + str(logfile_name_today_date_prefix)
+                    #     + '" size ' + str(fsize_mb)
+                    #     + 'MB exceed limit of ' + str(limit_size_mb) + 'MB\n'
+                    # )
 
             f.close()
         except Exception as ex:
