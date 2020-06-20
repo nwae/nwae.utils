@@ -48,7 +48,7 @@ class Cleanup:
                 updated_time_str = format(dt.datetime.fromtimestamp(updated_time))
                 age_secs = tnow - updated_time
 
-                lg.Log.debug(
+                lg.Log.important(
                     'Checking file "' + str(file) + '"..'
                     + '" last updated time ' + str(updated_time_str)
                     + ', age ' + str(round(age_secs/86400,2)) + ' days ('
