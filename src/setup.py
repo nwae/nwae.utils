@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='nwae.utils',
-    version='1.8.0',
+    version='1.8.1',
     packages=[
         'nwae.utils',
         'nwae.utils.audio',

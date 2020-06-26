@@ -11,7 +11,7 @@ class AudioFormats:
     def __init__(self):
         return
 
-    def convert_to_wav(
+    def convert_format(
             self,
             filepath,
             to_format = 'wav'
@@ -49,7 +49,7 @@ class AudioFormats:
 
 if __name__ == '__main__':
     audio_file = 'music.m4a'
-    AudioFormats().convert_to_wav(
+    AudioFormats().convert_format(
         filepath = audio_file
     )
     exit(0)
