@@ -32,14 +32,14 @@ class Cleanup:
     ):
         tnow = time.time()
         tnow_str = format(dt.datetime.fromtimestamp(tnow))
-        lg.Log.debug(
+        lg.Log.important(
             str(self.__class__) + str(getframeinfo(currentframe()).lineno)
             + ': Removing old files from folder "' + self.folder + '" older than '
             + str(self.max_age_secs) + ' secs...'
         )
         try:
             farr = os.listdir(self.folder)
-            lg.Log.debug('Files in folder: ' + str(farr))
+            lg.Log.important('Files in folder: ' + str(farr))
             for file in farr:
                 if not re.search(pattern=self.regex, string=file):
                     # lg.Log.info('Ignoring file "' + str(file) + '", not matching regex "' + str(self.regex) + '".')
@@ -48,7 +48,7 @@ class Cleanup:
                 updated_time_str = format(dt.datetime.fromtimestamp(updated_time))
                 age_secs = tnow - updated_time
 
-                lg.Log.debug(
+                lg.Log.important(
                     'Checking file "' + str(file) + '"..'
                     + '" last updated time ' + str(updated_time_str)
                     + ', age ' + str(round(age_secs/86400,2)) + ' days ('

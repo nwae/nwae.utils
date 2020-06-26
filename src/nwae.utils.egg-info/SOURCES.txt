@@ -20,6 +20,7 @@ src/nwae/utils/SendMail.py
 src/nwae/utils/StringUtils.py
 src/nwae/utils/ThreadGroup.py
 src/nwae/utils/UnitTest.py
+src/nwae/utils/audio/AudioFormats.py
 src/nwae/utils/data/BaseDataCache.py
 src/nwae/utils/networking/Ssl.py
 src/nwae/utils/networking/WebSocketClient.py
