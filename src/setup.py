@@ -11,6 +11,13 @@ setup(
         'nwae.utils.sec',
     ],
     package_dir={'': 'src'},
+    install_requires=[
+        # 'numpy',
+        # 'pandas',
+        # 'requests',
+        # 'urllib3',
+        # 'pydub'
+    ],
     url='',
     license='',
     author='nwae',
