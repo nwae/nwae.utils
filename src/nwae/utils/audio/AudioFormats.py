@@ -38,13 +38,13 @@ class AudioFormats:
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
                 + ': Successful Conversion from "' + str(filepath) + '" to "' + str(new_filepath) + '"..'
             )
+            return new_filepath
         except Exception as ex:
             raise Exception(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
                 + ': Exception converting "' + str(filepath) + '" to "' + str(new_filepath)
                 + '": ' + str(ex)
             )
-        return
 
 
 if __name__ == '__main__':
