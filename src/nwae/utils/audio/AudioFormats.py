@@ -48,7 +48,7 @@ class AudioFormats:
 
 
 if __name__ == '__main__':
-    audio_file = 'music.m4a'
+    audio_file = '/usr/local/git/nwae/nwae.lang/app.data/voice-recordings/Lenin_-_In_Memory_Of_Sverdlov.ogg.mp3'
     AudioFormats().convert_format(
         filepath = audio_file
     )

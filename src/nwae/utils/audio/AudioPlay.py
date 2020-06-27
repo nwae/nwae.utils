@@ -22,7 +22,7 @@ class AudioPlay:
             self,
             # Stream chunk
             chunk = 1024,
-            n_chunks = None
+            n_chunks = 0
     ):
         # open a wav format music
         f = wave.open(self.audio_filepath, "rb")
@@ -60,11 +60,11 @@ class AudioPlay:
 
 if __name__ == '__main__':
     Log.LOGLEVEL = Log.LOG_LEVEL_DEBUG_1
-    audio_filepath = '/usr/local/git/nwae/nwae.lang/app.data/voice-recordings/OSR_cn_000_0072_8k.wav'
+    audio_filepath = '/usr/local/git/nwae/nwae.lang/app.data/voice-recordings/Lenin_-_In_Memory_Of_Sverdlov.ogg.wav'
 
     AudioPlay(
         audio_filepath = audio_filepath
     ).play(
-        n_chunks = 50
+        n_chunks = 0
     )
     exit(0)
