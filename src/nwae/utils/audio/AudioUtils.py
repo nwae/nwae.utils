@@ -5,7 +5,7 @@ import re
 from nwae.utils.Log import Log
 from inspect import getframeinfo, currentframe
 import wave
-# To get audio from microphone
+# To get audio from microphone for Mac
 #  > brew install portaudio
 #  > pip install PyAudio
 import pyaudio
