@@ -7,6 +7,7 @@ import pyaudio
 import wave
 from nwae.utils.Log import Log
 from inspect import getframeinfo, currentframe
+from nwae.utils.audio.AudioFormats import AudioFormats
 
 
 class AudioPlay:
@@ -60,10 +61,14 @@ class AudioPlay:
 
 if __name__ == '__main__':
     Log.LOGLEVEL = Log.LOG_LEVEL_DEBUG_1
-    audio_filepath = '/usr/local/git/nwae/nwae.lang/app.data/voice-recordings/Lenin_-_In_Memory_Of_Sverdlov.ogg.wav'
+    audio_filepath_mp3 = '/usr/local/git/nwae/nwae.lang/app.data/voice-recordings/Lenin_-_In_Memory_Of_Sverdlov.ogg.mp3'
+    audio_filepath_wav = AudioFormats().convert_format(
+        filepath = audio_filepath_mp3
+    )
 
+    print('Playing audio from "' + str(audio_filepath_wav) + '"')
     AudioPlay(
-        audio_filepath = audio_filepath
+        audio_filepath = audio_filepath_wav
     ).play(
         n_chunks = 0
     )
