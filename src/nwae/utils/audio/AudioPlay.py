@@ -6,7 +6,7 @@
 import pyaudio
 from nwae.utils.Log import Log
 from inspect import getframeinfo, currentframe
-from nwae.utils.audio.AudioFormats import AudioFormats
+from nwae.utils.audio.AudioUtils import AudioUtils
 import numpy as np
 import wave
 
@@ -77,7 +77,7 @@ class AudioPlay:
 if __name__ == '__main__':
     Log.LOGLEVEL = Log.LOG_LEVEL_DEBUG_1
     audio_filepath_mp3 = '/usr/local/git/nwae/nwae.lang/app.data/voice-recordings/Lenin_-_In_Memory_Of_Sverdlov.ogg.mp3'
-    audio_filepath_wav = AudioFormats().convert_format(
+    audio_filepath_wav = AudioUtils().convert_format(
         filepath = audio_filepath_mp3
     )
 
