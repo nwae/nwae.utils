@@ -4,10 +4,11 @@
 #  > brew install portaudio
 #  > pip install PyAudio
 import pyaudio
-import wave
 from nwae.utils.Log import Log
 from inspect import getframeinfo, currentframe
 from nwae.utils.audio.AudioFormats import AudioFormats
+import numpy as np
+import wave
 
 
 class AudioPlay:
@@ -18,6 +19,20 @@ class AudioPlay:
     ):
         self.audio_filepath = audio_filepath
         return
+
+    def load_as_array(self):
+        ifile = wave.open(self.audio_filepath)
+        samples = ifile.getnframes()
+        audio = ifile.readframes(samples)
+
+        # Convert buffer to float32 using NumPy
+        audio_as_np_int16 = np.frombuffer(audio, dtype=np.int16)
+        audio_as_np_float32 = audio_as_np_int16.astype(np.float32)
+
+        # Normalise float32 array so that values are between -1.0 and +1.0
+        max_int16 = 2 ** 15
+        audio_normalised = audio_as_np_float32 / max_int16
+        return audio_normalised
 
     def play(
             self,
@@ -67,9 +82,26 @@ if __name__ == '__main__':
     )
 
     print('Playing audio from "' + str(audio_filepath_wav) + '"')
-    AudioPlay(
+    obj = AudioPlay(
         audio_filepath = audio_filepath_wav
-    ).play(
-        n_chunks = 0
     )
+    obj.play(
+        n_chunks = 100
+    )
+
+    arr = obj.load_as_array()
+    print(arr.tolist()[0:10000])
+
+    l = min(len(arr), 20000)
+    x = np.array(list(range(l)))
+    y = arr[0:l]
+
+    import matplotlib.pyplot as plt
+    # plt.style.use('seaborn-whitegrid')
+    # fig = plt.figure()
+    # ax = plt.axes()
+    # ax.plot(x, y)
+    plt.plot(x, y)
+    plt.show()
+
     exit(0)
