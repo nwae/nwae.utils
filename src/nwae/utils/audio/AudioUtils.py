@@ -105,17 +105,23 @@ class AudioUtils:
         p.terminate()
         return
 
-    def load_as_array(
+    def load_as_np_array(
             self,
             audio_filepath
     ):
         ifile = wave.open(audio_filepath)
-        samples = ifile.getnframes()
-        audio = ifile.readframes(samples)
+        n_frames = ifile.getnframes()
+        data_bytes = ifile.readframes(n_frames)
 
         # Convert buffer to float32 using NumPy
-        audio_as_np_int16 = np.frombuffer(audio, dtype=np.int16)
+        audio_as_np_int16 = np.frombuffer(data_bytes, dtype=np.int16)
         audio_as_np_float32 = audio_as_np_int16.astype(np.float32)
+
+        Log.info(
+            str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+            + ': Loaded audio "' + str(audio_filepath) + '" from ' + str(len(data_bytes))
+            + ' bytes to ' + str(len(audio_as_np_float32)) + ' samples.'
+        )
 
         # Normalise float32 array so that values are between -1.0 and +1.0
         max_int16 = 2 ** 15
@@ -256,7 +262,7 @@ if __name__ == '__main__':
         play_secs = 2
     )
 
-    arr = obj.load_as_array(
+    arr = obj.load_as_np_array(
         audio_filepath = audio_file_wav
     )
     print(arr.tolist()[0:10000])
