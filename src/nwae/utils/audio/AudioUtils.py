@@ -155,7 +155,6 @@ class AudioUtils:
             rate     = f.getframerate(),
             output   = True
         )
-        n_channels = f.getnchannels()
         n_frames = f.getnframes()
         sample_rate = f.getframerate()
         if play_secs > 0:
@@ -431,16 +430,19 @@ def example_resample_wav(
 
 if __name__ == '__main__':
     audio_file = '/usr/local/git/nwae/nwae.lang/app.data/voice-recordings/Lenin_-_In_Memory_Of_Sverdlov.ogg.mp3'
+    play_audio = True
 
     audio_file_wav = example_convert_format_to_wav(audio_filepath=audio_file)
-    #example_play_wav(audio_filepath_wav=audio_file_wav, play_secs=2)
+    if play_audio:
+        example_play_wav(audio_filepath_wav=audio_file_wav, play_secs=2)
 
     mono_filepath = '/usr/local/git/nwae/nwae.lang/app.data/voice-recordings/converted_mono.wav'
     example_convert_sound_to_mono(
         audio_filepath = audio_file_wav,
         mono_filepath  = mono_filepath
     )
-    #example_play_wav(audio_filepath_wav=mono_filepath, play_secs=2)
+    if play_audio:
+        example_play_wav(audio_filepath_wav=mono_filepath, play_secs=2)
 
     dst_filepath = '/usr/local/git/nwae/nwae.lang/app.data/voice-recordings/converted_mono_8000.wav'
     resampled_filepath = example_resample_wav(
@@ -448,5 +450,6 @@ if __name__ == '__main__':
         resampled_filepath = dst_filepath,
         outrate = 8000
     )
-    example_play_wav(audio_filepath_wav=resampled_filepath, play_secs=2)
+    if play_audio:
+        example_play_wav(audio_filepath_wav=resampled_filepath, play_secs=2)
     exit(0)
