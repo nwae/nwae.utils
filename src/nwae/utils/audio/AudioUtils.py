@@ -6,8 +6,6 @@ from nwae.utils.Log import Log
 from inspect import getframeinfo, currentframe
 import numpy as np
 import wave
-import audioop
-from scipy.io import wavfile
 import scipy.signal as sps
 # To get audio from microphone for Mac
 #  > brew install portaudio
@@ -34,6 +32,7 @@ from datetime import datetime
 #   total_bytes = total_bytes_per_frames * total_frames
 #
 class AudioWavProperties:
+
     def __init__(
             self,
             format,
@@ -82,6 +81,7 @@ class AudioWavProperties:
             dtype = self.data_type,
             order = 'C'
         )
+        # Just an array 0,1,2,3,... to symbolize indexes
         n_sample = np.array(list(range(len(self.np_data_normalized))))
         Log.debug(
             str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
