@@ -25,6 +25,7 @@ class AudioWavProperties:
             sample_width,
             bytes_per_frame,
             data_type,
+            data_bytes_len,
             data_bytes
     ):
         self.format = format
@@ -34,6 +35,7 @@ class AudioWavProperties:
         self.sample_width = sample_width
         self.bytes_per_frame = bytes_per_frame
         self.data_type = data_type
+        self.data_bytes_len = data_bytes_len
         self.data_bytes = data_bytes
         return
 
@@ -45,6 +47,8 @@ class AudioWavProperties:
             'n_frames': self.n_frames,
             'sample_width': self.sample_width,
             'bytes_per_frame': self.bytes_per_frame,
+            'data_type': self.data_type,
+            'data_bytes_len': self.data_bytes_len,
             'data_bytes': 'First 100 bytes: ' + str(self.data_bytes[0:min(100, len(self.data_bytes))])
         }
 
@@ -95,6 +99,7 @@ class AudioUtils:
                     sample_width = sample_width,
                     bytes_per_frame = bytes_per_frame,
                     data_type  = data_type,
+                    data_bytes_len = len(data_bytes),
                     data_bytes = data_bytes
                 )
         except Exception as ex:
@@ -198,16 +203,17 @@ class AudioUtils:
         Log.info(
             str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
             + ': Source audio file "' + str(src_filepath) + '", ' + str(wav_properties.n_channels) + ' channels, '
-            + str(wav_properties.n_frames) + ' frames, total data bytes length = ' + str(len(wav_properties.data_bytes))
+            + str(wav_properties.n_frames) + ' properties: ' + str(wav_properties.to_json())
         )
 
-        ratio_retain = float(outrate) / wav_properties.frame_rate
-        n_retained_data_bytes = round(len(wav_properties.data_bytes) * ratio_retain)
+        ratio_retain_sample = float(outrate) / wav_properties.frame_rate
+        n_retained_samples = round(wav_properties.data_bytes_len * ratio_retain_sample / wav_properties.sample_width)
         Log.info(
             str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
             + ': Try to resample from ' + str(wav_properties.frame_rate) + 'Hz to '
             + str(outrate) + 'Hz, or total samples '
-            + str(len(wav_properties.data_bytes)) + ' to ' + str(n_retained_data_bytes) + ' samples'
+            + str(wav_properties.data_bytes_len/wav_properties.sample_width)
+            + ' to ' + str(n_retained_samples) + ' samples'
         )
 
         try:
@@ -216,7 +222,7 @@ class AudioUtils:
                     buffer = wav_properties.data_bytes,
                     dtype  = wav_properties.data_type
                 ),
-                n_retained_data_bytes
+                n_retained_samples
             )
             data_resampled = data_resampled.astype(wav_properties.data_type)
 
@@ -238,6 +244,14 @@ class AudioUtils:
             s_write.setnframes(len(data_resampled))
             s_write.setcomptype(comptype='NONE', compname='Uncompressed')
             s_write.writeframes(data_resampled.copy(order='C'))
+
+            resampled_properties = self.get_audio_file_properties(
+                wav_filepath = dst_filepath
+            )
+            Log.important(
+                str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                + ': Resampled file "' + str(dst_filepath) + '" audio properties: ' + str(resampled_properties.to_json())
+            )
         except Exception as ex_write:
             raise Exception(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
@@ -336,6 +350,11 @@ def example_convert_sound_to_mono(
         src_filepath = audio_filepath,
         dst_filepath = mono_filepath
     )
+    print(
+        'Mono File "' + str(audio_file_wav)
+        + ' properties:\n\r'
+        + str(obj.get_audio_file_properties(wav_filepath=mono_filepath).to_json())
+    )
     return True
 
 def example_play_wav(
@@ -376,8 +395,9 @@ def example_resample_wav(
         outrate = outrate
     )
     print(
-        'File "' + str(resampled_filepath) + '" Format, Channels, Frame Rate, N Frames = '
-        + str(obj.get_audio_file_properties(wav_filepath=dst_filepath).to_json())
+        'Resampled File "' + str(audio_file_wav)
+        + ' properties:\n\r'
+        + str(obj.get_audio_file_properties(wav_filepath=resampled_filepath).to_json())
     )
     return resampled_filepath
 
@@ -386,20 +406,20 @@ if __name__ == '__main__':
     audio_file = '/usr/local/git/nwae/nwae.lang/app.data/voice-recordings/Lenin_-_In_Memory_Of_Sverdlov.ogg.mp3'
 
     audio_file_wav = example_convert_format_to_wav(audio_filepath=audio_file)
-    example_play_wav(audio_filepath_wav=audio_file_wav, play_secs=2)
+    #example_play_wav(audio_filepath_wav=audio_file_wav, play_secs=2)
 
     mono_filepath = '/usr/local/git/nwae/nwae.lang/app.data/voice-recordings/converted_mono.wav'
     example_convert_sound_to_mono(
         audio_filepath = audio_file_wav,
         mono_filepath  = mono_filepath
     )
-    example_play_wav(audio_filepath_wav=mono_filepath, play_secs=2)
+    #example_play_wav(audio_filepath_wav=mono_filepath, play_secs=2)
 
     dst_filepath = '/usr/local/git/nwae/nwae.lang/app.data/voice-recordings/converted_mono_8000.wav'
     resampled_filepath = example_resample_wav(
         mono_filepath = mono_filepath,
         resampled_filepath = dst_filepath,
-        outrate = 22050
+        outrate = 8000
     )
     example_play_wav(audio_filepath_wav=resampled_filepath, play_secs=2)
     exit(0)
