@@ -7,10 +7,13 @@ from inspect import getframeinfo, currentframe
 import numpy as np
 import wave
 import audioop
+from scipy.io import wavfile
+import scipy.signal as sps
 # To get audio from microphone for Mac
 #  > brew install portaudio
 #  > pip install PyAudio
 import pyaudio
+from datetime import datetime
 
 
 class AudioUtils:
@@ -52,9 +55,8 @@ class AudioUtils:
     def play_wav(
             self,
             wav_filepath,
-            # Stream chunk
-            chunk = 1024,
-            n_chunks = 0
+            play_secs = 0,
+            chunk = 1024
     ):
         assert self.get_audio_filepath_extension(filepath=wav_filepath) == 'wav',\
             'Audio file "' + str(wav_filepath) + '" must be wav file'
@@ -70,24 +72,30 @@ class AudioUtils:
             rate     = f.getframerate(),
             output   = True
         )
-        # read data
-        data = f.readframes(chunk)
+        n_channels = f.getnchannels()
+        n_frames = f.getnframes()
+        sample_rate = f.getframerate()
+        if play_secs > 0:
+            n_frames_required = min(play_secs * sample_rate, n_frames)
+        else:
+            n_frames_required = n_frames
+        Log.info(
+            str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+            + ': Require ' + str(n_frames_required) + ' frames to play ' + str(play_secs)
+            + ' seconds of total ' + str(n_frames / sample_rate) + ' secs.'
+        )
 
-        # play stream
-        i = 0
-        while data:
-            stream.write(data)
+        starttime = datetime.now()
+        i_frames = 0
+        while i_frames < n_frames_required:
             data = f.readframes(chunk)
-            i += 1
-            Log.debug('Chunk #' + str(i))
-            if n_chunks and i >= n_chunks:
-                Log.info(
-                    str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                    + ': Done playing ' + str(n_chunks) + ' chunks.'
-                )
-                break
-
-            # stop stream
+            stream.write(data)
+            i_frames += chunk
+        difftime = datetime.now() - starttime
+        Log.info(
+            str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+            + ': Played ' + str(difftime.seconds + difftime.microseconds / 1000000) + ' secs.'
+        )
         stream.stop_stream()
         stream.close()
 
@@ -112,7 +120,7 @@ class AudioUtils:
         audio_normalised = audio_as_np_float32 / max_int16
         return audio_normalised
 
-    def downsample(
+    def convert_sampling_rate(
             self,
             src_filepath,
             dst_filepath,
@@ -133,39 +141,45 @@ class AudioUtils:
         n_channels = s_read.getnchannels()
         sampling_rate = s_read.getframerate()
         data = s_read.readframes(n_frames)
+        Log.info(
+            str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+            + ': Source audio file "' + str(src_filepath) + '", ' + str(n_channels) + ' channels, '
+            + str(n_frames) + ' frames, total data length = ' + str(len(data))
+        )
 
         try:
-            converted = audioop.ratecv(
-                data, 2, n_channels, sampling_rate, outrate, None
-            )
-            if outchannels == 1:
-                converted = audioop.tomono(converted[0], 2, 1, 0)
-        except Exception as ex_down:
-            Log.error(
+            # Resample data
+            number_of_samples = round(len(data) * float(outrate) / sampling_rate)
+            data_resampled = sps.resample(data, number_of_samples)
+
+            Log.important(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                + ': Downsample exception: ' + str(ex_down)
+                + ': Resampled from ' + str(len(data)) + ' frames to '
+                + str(len(data_resampled)) + ' frames'
             )
-            return False
+        except Exception as ex_down:
+            raise Exception(
+                str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                + ': Convert sampling rate exception: ' + str(ex_down)
+            )
 
         try:
             s_write.setparams((outchannels, 2, outrate, 0, 'NONE', 'Uncompressed'))
-            s_write.writeframes(converted)
+            s_write.writeframes(data_resampled)
         except Exception as ex_write:
-            Log.error(
+            raise Exception(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
                 + ': Write file "' + str(dst_filepath) + '" exception: ' + str(ex_write)
             )
-            return False
 
         try:
             s_read.close()
             s_write.close()
         except Exception as ex_close:
-            Log.error(
+            raise Exception(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
                 + ': Close error: ' + str(ex_close)
             )
-            return False
         return True
 
     #
@@ -221,14 +235,25 @@ if __name__ == '__main__':
     )
     # print('Frame Rate = ' + str(obj.get_audio_file_properties(wav_filepath=obj.get_audio_filepath())))
     print(
-        'Format, Channels, Frame Rate, N Frames = '
+        'File "' + str(audio_file_wav) + '" Format, Channels, Frame Rate, N Frames = '
         + str(obj.get_audio_file_properties(wav_filepath=audio_file_wav))
     )
 
     # Play
     obj.play_wav(
         wav_filepath = audio_file_wav,
-        n_chunks = 100
+        play_secs = 2
+    )
+
+    dst_filepath = 'converted_8000.wav'
+    obj.convert_sampling_rate(
+        src_filepath = audio_file_wav,
+        dst_filepath = dst_filepath,
+        outrate = 8000
+    )
+    print(
+        'File "' + str(dst_filepath) + '" Format, Channels, Frame Rate, N Frames = '
+        + str(obj.get_audio_file_properties(wav_filepath=dst_filepath))
     )
 
     arr = obj.load_as_array(
