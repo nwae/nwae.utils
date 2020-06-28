@@ -78,6 +78,15 @@ class AudioWavProperties:
         }
 
 
+#
+# Fundamental Utilities to Handle Audio Files
+#  - conversion from mp3, m4a, etc formats to standard wav
+#  - read wav file properties (frame rate, channels, sample width, etc)
+#  - play wav files
+#  - extract raw values to numpy array
+#  - conversion to mono channel
+#  - up/down sampling of raw audio values
+#
 class AudioUtils:
 
     def __init__(
@@ -91,6 +100,9 @@ class AudioUtils:
     ):
         return re.sub(pattern='(.*[.])([a-zA-Z0-9]+$)', repl='\\2', string=filepath)
 
+    #
+    # Fundamental properties required for all audio operations
+    #
     def get_audio_file_properties(
             self,
             wav_filepath
