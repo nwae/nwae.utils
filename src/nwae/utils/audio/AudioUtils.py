@@ -15,6 +15,36 @@ import scipy.signal as sps
 import pyaudio
 from datetime import datetime
 
+class AudioWavProperties:
+    def __init__(
+            self,
+            format,
+            n_channels,
+            frame_rate,
+            n_frames,
+            sample_width,
+            bytes_per_frame,
+            data_bytes
+    ):
+        self.format = format
+        self.n_channels = n_channels
+        self.frame_rate = frame_rate
+        self.n_frames = n_frames
+        self.sample_width = sample_width
+        self.bytes_per_frame = bytes_per_frame
+        self.data_bytes = data_bytes
+        return
+
+    def to_json(self):
+        return {
+            'format': self.format,
+            'n_channels': self.n_channels,
+            'frame_rate': self.frame_rate,
+            'n_frames': self.n_frames,
+            'sample_width': self.sample_width,
+            'bytes_per_frame': self.bytes_per_frame,
+            'data_bytes': 'First 100 bytes: ' + str(self.data_bytes[0:min(100, len(self.data_bytes))])
+        }
 
 class AudioUtils:
 
@@ -44,10 +74,20 @@ class AudioUtils:
                 n_channels = f.getnchannels()
                 frame_rate = f.getframerate()
                 n_frames = f.getnframes()
+                sample_width = f.getsampwidth()
                 # Each frame contains all channel values, so should be 2 bytes * n_channels
                 bytes_per_frame = len(f.readframes(1))
+                data_bytes = f.readframes(n_frames)
 
-                return format, n_channels, frame_rate, n_frames, bytes_per_frame
+                return AudioWavProperties(
+                    format = format,
+                    n_channels = n_channels,
+                    frame_rate = frame_rate,
+                    n_frames   = n_frames,
+                    sample_width = sample_width,
+                    bytes_per_frame = bytes_per_frame,
+                    data_bytes = data_bytes
+                )
         except Exception as ex:
             raise Exception(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
@@ -57,7 +97,7 @@ class AudioUtils:
     def play_wav(
             self,
             wav_filepath,
-            play_secs = 0,
+            play_secs = 0.0,
             chunk = 1024
     ):
         assert self.get_audio_filepath_extension(filepath=wav_filepath) == 'wav',\
@@ -78,7 +118,7 @@ class AudioUtils:
         n_frames = f.getnframes()
         sample_rate = f.getframerate()
         if play_secs > 0:
-            n_frames_required = min(play_secs * sample_rate, n_frames)
+            n_frames_required = int(min(play_secs * sample_rate, n_frames))
         else:
             n_frames_required = n_frames
         Log.info(
@@ -109,69 +149,72 @@ class AudioUtils:
             self,
             audio_filepath
     ):
-        ifile = wave.open(audio_filepath)
-        n_frames = ifile.getnframes()
-        data_bytes = ifile.readframes(n_frames)
+        wav_properties = self.get_audio_file_properties(
+            wav_filepath = audio_filepath
+        )
 
         # Convert buffer to float32 using NumPy
-        audio_as_np_int16 = np.frombuffer(data_bytes, dtype=np.int16)
-        audio_as_np_float32 = audio_as_np_int16.astype(np.float32)
+        # Anything above 8 bits are signed, only 8-bit is unsigned
+        if wav_properties.sample_width == 1:
+            audio_as_np = np.frombuffer(wav_properties.data_bytes, dtype=np.uint8)
+        elif wav_properties.sample_width == 2:
+            audio_as_np = np.frombuffer(wav_properties.data_bytes, dtype=np.int16)
+        else:
+            raise Exception('Wrong sample width ' + str(wav_properties.sample_width))
+
+        audio_as_np_float32 = audio_as_np.astype(np.float32)
 
         Log.info(
             str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-            + ': Loaded audio "' + str(audio_filepath) + '" from ' + str(len(data_bytes))
+            + ': Loaded audio "' + str(audio_filepath) + '" from ' + str(len(wav_properties.data_bytes))
             + ' bytes to ' + str(len(audio_as_np_float32)) + ' samples.'
         )
 
         # Normalise float32 array so that values are between -1.0 and +1.0
-        max_int16 = 2 ** 15
-        audio_normalised = audio_as_np_float32 / max_int16
+        n_bits = 8*wav_properties.sample_width - 1
+        audio_normalised = audio_as_np_float32 / (2**n_bits)
         return audio_normalised
 
     def convert_sampling_rate(
             self,
+            # wav file format
             src_filepath,
             dst_filepath,
             outrate     = 16000,
             outchannels = 1
     ):
+        wav_properties = self.get_audio_file_properties(
+            wav_filepath = src_filepath
+        )
         try:
-            s_read = wave.open(src_filepath, 'r')
             s_write = wave.open(dst_filepath, 'w')
         except Exception as ex_file:
-            Log.error(
+            raise Exception(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                + ': File error: ' + str(ex_file)
+                + ': Cannot open file "' + str(dst_filepath) + '" for writing: ' + str(ex_file)
             )
-            return False
 
-        n_frames = s_read.getnframes()
-        n_channels = s_read.getnchannels()
-        sampling_rate = s_read.getframerate()
-        # Read as bytes data type
-        data_bytes = s_read.readframes(n_frames)
         Log.info(
             str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-            + ': Source audio file "' + str(src_filepath) + '", ' + str(n_channels) + ' channels, '
-            + str(n_frames) + ' frames, total data bytes length = ' + str(len(data_bytes))
+            + ': Source audio file "' + str(src_filepath) + '", ' + str(wav_properties.n_channels) + ' channels, '
+            + str(wav_properties.n_frames) + ' frames, total data bytes length = ' + str(len(wav_properties.data_bytes))
         )
 
-        # Resample data
-        ratio_retain = float(outrate) / sampling_rate
-        retained_data_bytes = round(len(data_bytes) * ratio_retain)
+        ratio_retain = float(outrate) / wav_properties.frame_rate
+        n_retained_data_bytes = round(len(wav_properties.data_bytes) * ratio_retain)
         Log.info(
             str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-            + ': Try to resample from ' + str(sampling_rate) + 'Hz to '
+            + ': Try to resample from ' + str(wav_properties.frame_rate) + 'Hz to '
             + str(outrate) + 'Hz, or total samples '
-            + str(len(data_bytes)) + ' to ' + str(retained_data_bytes) + ' samples'
+            + str(len(wav_properties.data_bytes)) + ' to ' + str(n_retained_data_bytes) + ' samples'
         )
 
         try:
-            data_resampled = sps.resample(data_bytes, retained_data_bytes)
+            data_resampled = sps.resample(wav_properties.data_bytes, n_retained_data_bytes)
 
             Log.important(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                + ': Resampled from ' + str(len(data_bytes)) + ' frames to '
+                + ': Resampled from ' + str(len(wav_properties.data_bytes)) + ' frames to '
                 + str(len(data_resampled)) + ' frames'
             )
         except Exception as ex_down:
@@ -190,7 +233,6 @@ class AudioUtils:
             )
 
         try:
-            s_read.close()
             s_write.close()
         except Exception as ex_close:
             raise Exception(
@@ -252,14 +294,15 @@ if __name__ == '__main__':
     )
     # print('Frame Rate = ' + str(obj.get_audio_file_properties(wav_filepath=obj.get_audio_filepath())))
     print(
-        'File "' + str(audio_file_wav) + '" Format, Channels, Frame Rate, N Frames, Bytes Per Frame = '
-        + str(obj.get_audio_file_properties(wav_filepath=audio_file_wav))
+        'File "' + str(audio_file_wav)
+        + ' properties:\n\r'
+        + str(obj.get_audio_file_properties(wav_filepath=audio_file_wav).to_json())
     )
 
     # Play
     obj.play_wav(
         wav_filepath = audio_file_wav,
-        play_secs = 2
+        play_secs = 1
     )
 
     arr = obj.load_as_np_array(
@@ -267,7 +310,7 @@ if __name__ == '__main__':
     )
     print(arr.tolist()[0:10000])
 
-    l = min(len(arr), 20000)
+    l = min(len(arr), 200000)
     x = np.array(list(range(l)))
     y = arr[0:l]
 
