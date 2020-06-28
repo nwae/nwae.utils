@@ -66,12 +66,38 @@ class AudioWavProperties:
         #
         # Extract channel raw values
         #
-        audio_as_np = np.frombuffer(self.data_bytes, dtype=self.data_type)
-        audio_as_np_float32 = audio_as_np.astype(np.float32)
+        audio_as_np = np.frombuffer(
+            buffer = self.data_bytes,
+            dtype  = self.data_type
+        )
+        self.np_data = audio_as_np.astype(np.float32)
 
         # Normalise float32 array so that values are between -1.0 and +1.0
         n_bits = 8*self.sample_width - 1
-        self.np_data_normalized = audio_as_np_float32 / (2**n_bits)
+        self.np_data_normalized = self.np_data / (2**n_bits)
+
+        # Now add additional dimension for channel
+        self.np_data_by_channel = np.zeros(
+            shape = (self.n_channels, self.n_frames),
+            dtype = self.data_type,
+            order = 'C'
+        )
+        n_sample = np.array(list(range(len(self.np_data_normalized))))
+        Log.debug(
+            str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+            + ': Normalized data by channel shape: ' + str(self.np_data_by_channel.shape)
+        )
+        if self.n_channels > 1:
+            for chnl in range(self.n_channels):
+                # Pick the correct indexes for this channel
+                indexes = n_sample % self.sample_width == chnl
+                channel_n_frames = np.sum(indexes*1)
+                assert channel_n_frames,\
+                    'Channel ' + str(chnl) + ' with ' + str(channel_n_frames) + ' frames not ' + str(self.n_frames)
+                # Assign channel data
+                self.np_data_by_channel[chnl] = self.np_data[indexes]
+        else:
+            self.np_data_by_channel[0] = self.np_data.copy()
 
         return
 
@@ -80,7 +106,7 @@ class AudioWavProperties:
             show_first_n_bytes = 10
     ):
         data_bytes_part = self.data_bytes[0:min(100, len(self.data_bytes))]
-        np_data_normalized_part = self.np_data_normalized[0:min(100, len(self.np_data_normalized))]
+        np_data_part = self.np_data[0:min(100, len(self.np_data))]
         return {
             'format': self.format,
             'n_channels': self.n_channels,
@@ -91,7 +117,7 @@ class AudioWavProperties:
             'data_type': self.data_type,
             'data_bytes_len': self.data_bytes_len,
             'data_bytes': 'First ' + str(show_first_n_bytes) + ' bytes: ' + str(data_bytes_part),
-            'np_data_normalized': 'First ' + str(show_first_n_bytes) + ' samples: ' + str(np_data_normalized_part)
+            'np_data': 'First ' + str(show_first_n_bytes) + ' samples: ' + str(np_data_part)
         }
 
 
@@ -178,7 +204,7 @@ class AudioUtils:
             n_frames_required = int(min(play_secs * sample_rate, n_frames))
         else:
             n_frames_required = n_frames
-        Log.info(
+        Log.debug(
             str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
             + ': Require ' + str(n_frames_required) + ' frames to play ' + str(play_secs)
             + ' seconds of total ' + str(n_frames / sample_rate) + ' secs.'
@@ -191,7 +217,7 @@ class AudioUtils:
             stream.write(data)
             i_frames += chunk
         difftime = datetime.now() - starttime
-        Log.info(
+        Log.debug(
             str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
             + ': Played ' + str(difftime.seconds + difftime.microseconds / 1000000) + ' secs.'
         )
@@ -216,8 +242,7 @@ class AudioUtils:
             # wav file format
             src_filepath,
             dst_filepath,
-            outrate     = 16000,
-            outchannels = 1
+            outrate
     ):
         wav_properties = self.get_audio_file_properties(
             wav_filepath = src_filepath
@@ -237,29 +262,44 @@ class AudioUtils:
         )
 
         ratio_retain_sample = float(outrate) / wav_properties.frame_rate
-        n_retained_samples = round(wav_properties.data_bytes_len * ratio_retain_sample / wav_properties.sample_width)
+        n_retained_frames = round(wav_properties.n_frames * ratio_retain_sample)
         Log.info(
             str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
             + ': Try to resample from ' + str(wav_properties.frame_rate) + 'Hz to '
-            + str(outrate) + 'Hz, or total samples '
-            + str(wav_properties.data_bytes_len/wav_properties.sample_width)
-            + ' to ' + str(n_retained_samples) + ' samples'
+            + str(outrate) + 'Hz, or total frames  '
+            + str(wav_properties.n_frames)
+            + ' to ' + str(n_retained_frames) + ' frames'
         )
 
         try:
-            data_resampled = sps.resample(
-                np.frombuffer(
-                    buffer = wav_properties.data_bytes,
-                    dtype  = wav_properties.data_type
-                ),
-                n_retained_samples
+            # Do by channel
+            sample_len_retained = wav_properties.sample_width * n_retained_frames
+            data_resampled_final = np.zeros(
+                shape = (sample_len_retained,),
+                dtype = wav_properties.data_type,
+                order = 'C'
             )
-            data_resampled = data_resampled.astype(wav_properties.data_type)
+            np_indexes = np.array(list(range(sample_len_retained)))
+            if wav_properties.n_channels > 1:
+                for chnl in range(wav_properties.n_channels):
+                    data_resampled = sps.resample(
+                        wav_properties.np_data_by_channel[chnl],
+                        n_retained_frames
+                    )
+                    data_resampled = data_resampled.astype(wav_properties.data_type)
+                    # Assign channel data
+                    data_resampled_final[np_indexes%wav_properties.sample_width==chnl] = data_resampled.copy(order='C')
+            else:
+                data_resampled_final = sps.resample(
+                    wav_properties.np_data,
+                    n_retained_frames
+                )
+                data_resampled_final = data_resampled_final.astype(wav_properties.data_type)
 
             Log.important(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                + ': Resampled from ' + str(len(wav_properties.data_bytes)) + ' frames to '
-                + str(len(data_resampled)) + ' frames'
+                + ': Resampled from ' + str(wav_properties.n_frames) + ' frames to '
+                + str(len(data_resampled_final)) + ' frames'
             )
         except Exception as ex_down:
             raise Exception(
@@ -271,9 +311,9 @@ class AudioUtils:
             s_write.setnchannels(wav_properties.n_channels)
             s_write.setsampwidth(wav_properties.sample_width)
             s_write.setframerate(outrate)
-            s_write.setnframes(len(data_resampled))
+            s_write.setnframes(len(data_resampled_final))
             s_write.setcomptype(comptype='NONE', compname='Uncompressed')
-            s_write.writeframes(data_resampled.copy(order='C'))
+            s_write.writeframes(data_resampled_final.copy(order='C'))
 
             resampled_properties = self.get_audio_file_properties(
                 wav_filepath = dst_filepath
@@ -360,7 +400,7 @@ def example_convert_format_to_wav(
 ):
     obj = AudioUtils()
     audio_file_wav = obj.convert_format(
-        filepath  = audio_file,
+        filepath  = audio_filepath,
         to_format = 'wav'
     )
     # print('Frame Rate = ' + str(obj.get_audio_file_properties(wav_filepath=obj.get_audio_filepath())))
@@ -414,13 +454,13 @@ def example_play_wav(
     return
 
 def example_resample_wav(
-        mono_filepath,
+        src_filepath,
         resampled_filepath,
         outrate
 ):
     obj = AudioUtils()
     obj.convert_sampling_rate(
-        src_filepath = mono_filepath,
+        src_filepath = src_filepath,
         dst_filepath = resampled_filepath,
         outrate = outrate
     )
@@ -433,27 +473,29 @@ def example_resample_wav(
 
 
 if __name__ == '__main__':
+    Log.LOGLEVEL = Log.LOG_LEVEL_DEBUG_1
     audio_file = '/usr/local/git/nwae/nwae.lang/app.data/voice-recordings/Lenin_-_In_Memory_Of_Sverdlov.ogg.mp3'
     play_audio = True
 
     audio_file_wav = example_convert_format_to_wav(audio_filepath=audio_file)
-    if play_audio:
-        example_play_wav(audio_filepath_wav=audio_file_wav, play_secs=2)
+    # if play_audio:
+    #     example_play_wav(audio_filepath_wav=audio_file_wav, play_secs=2)
 
-    mono_filepath = '/usr/local/git/nwae/nwae.lang/app.data/voice-recordings/converted_mono.wav'
+    mono_filepath = re.sub(pattern='.wav$', repl='', string=str(audio_file_wav)) + '_mono.wav'
     example_convert_sound_to_mono(
         audio_filepath = audio_file_wav,
         mono_filepath  = mono_filepath
     )
-    if play_audio:
-        example_play_wav(audio_filepath_wav=mono_filepath, play_secs=2)
+    # if play_audio:
+    #     example_play_wav(audio_filepath_wav=mono_filepath, play_secs=2)
 
-    dst_filepath = '/usr/local/git/nwae/nwae.lang/app.data/voice-recordings/converted_mono_8000.wav'
-    resampled_filepath = example_resample_wav(
-        mono_filepath = mono_filepath,
-        resampled_filepath = dst_filepath,
-        outrate = 8000
-    )
-    if play_audio:
-        example_play_wav(audio_filepath_wav=resampled_filepath, play_secs=2)
+    for src_filepath in [mono_filepath, audio_file_wav]:
+        dst_filepath = re.sub(pattern='.wav$', repl='', string=str(src_filepath)) + '_8000.wav'
+        resampled_filepath = example_resample_wav(
+            src_filepath = src_filepath,
+            resampled_filepath = dst_filepath,
+            outrate = 8000
+        )
+        if play_audio:
+            example_play_wav(audio_filepath_wav=resampled_filepath, play_secs=2)
     exit(0)
