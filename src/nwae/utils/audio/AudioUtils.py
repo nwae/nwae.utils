@@ -212,7 +212,10 @@ class AudioUtils:
 
         try:
             data_resampled = sps.resample(
-                np.frombuffer(wav_properties.data_bytes),
+                np.frombuffer(
+                    buffer = wav_properties.data_bytes,
+                    dtype  = wav_properties.data_type
+                ),
                 n_retained_data_bytes
             )
             data_resampled = data_resampled.astype(wav_properties.data_type)
@@ -247,6 +250,22 @@ class AudioUtils:
             raise Exception(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
                 + ': Close error: ' + str(ex_close)
+            )
+        return True
+
+    def convert_sound_to_mono(
+            self,
+            src_filepath,
+            dst_filepath
+    ):
+        try:
+            sound = AudioSegment.from_wav(src_filepath)
+            sound = sound.set_channels(1)
+            sound.export(dst_filepath, format="wav")
+        except Exception as ex:
+            raise Exception(
+                str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                + ': Failed convert "' + str(src_filepath) + '" to mono: ' + str(ex)
             )
         return True
 
@@ -292,11 +311,10 @@ class AudioUtils:
             )
 
 
-if __name__ == '__main__':
-    audio_file = '/usr/local/git/nwae/nwae.lang/app.data/voice-recordings/Lenin_-_In_Memory_Of_Sverdlov.ogg.mp3'
-
+def example_convert_format_to_wav(
+        audio_filepath
+):
     obj = AudioUtils()
-
     audio_file_wav = obj.convert_format(
         filepath  = audio_file,
         to_format = 'wav'
@@ -307,15 +325,32 @@ if __name__ == '__main__':
         + ' properties:\n\r'
         + str(obj.get_audio_file_properties(wav_filepath=audio_file_wav).to_json())
     )
+    return audio_file_wav
 
+def example_convert_sound_to_mono(
+        audio_filepath,
+        mono_filepath
+):
+    obj = AudioUtils()
+    obj.convert_sound_to_mono(
+        src_filepath = audio_filepath,
+        dst_filepath = mono_filepath
+    )
+    return True
+
+def example_play_wav(
+        audio_filepath_wav,
+        play_secs = 0
+):
+    obj = AudioUtils()
     # Play
     obj.play_wav(
-        wav_filepath = audio_file_wav,
-        play_secs = 1
+        wav_filepath = audio_filepath_wav,
+        play_secs = play_secs
     )
 
     arr = obj.load_as_np_array(
-        audio_filepath = audio_file_wav
+        audio_filepath = audio_filepath_wav
     )
     print(arr.tolist()[0:10000])
 
@@ -325,25 +360,46 @@ if __name__ == '__main__':
 
     import matplotlib.pyplot as plt
 
-    # plt.style.use('seaborn-whitegrid')
-    # fig = plt.figure()
-    # ax = plt.axes()
-    # ax.plot(x, y)
     plt.plot(x, y)
     plt.show()
+    return
 
-    #
-    # Resample
-    #
-    dst_filepath = '/usr/local/git/nwae/nwae.lang/app.data/voice-recordings/converted_8000.wav'
+def example_resample_wav(
+        mono_filepath,
+        resampled_filepath,
+        outrate
+):
+    obj = AudioUtils()
     obj.convert_sampling_rate(
-        src_filepath = audio_file_wav,
-        dst_filepath = dst_filepath,
-        outrate = 8000
+        src_filepath = mono_filepath,
+        dst_filepath = resampled_filepath,
+        outrate = outrate
     )
     print(
-        'File "' + str(dst_filepath) + '" Format, Channels, Frame Rate, N Frames = '
+        'File "' + str(resampled_filepath) + '" Format, Channels, Frame Rate, N Frames = '
         + str(obj.get_audio_file_properties(wav_filepath=dst_filepath).to_json())
     )
+    return resampled_filepath
 
+
+if __name__ == '__main__':
+    audio_file = '/usr/local/git/nwae/nwae.lang/app.data/voice-recordings/Lenin_-_In_Memory_Of_Sverdlov.ogg.mp3'
+
+    audio_file_wav = example_convert_format_to_wav(audio_filepath=audio_file)
+    example_play_wav(audio_filepath_wav=audio_file_wav, play_secs=2)
+
+    mono_filepath = '/usr/local/git/nwae/nwae.lang/app.data/voice-recordings/converted_mono.wav'
+    example_convert_sound_to_mono(
+        audio_filepath = audio_file_wav,
+        mono_filepath  = mono_filepath
+    )
+    example_play_wav(audio_filepath_wav=mono_filepath, play_secs=2)
+
+    dst_filepath = '/usr/local/git/nwae/nwae.lang/app.data/voice-recordings/converted_mono_8000.wav'
+    resampled_filepath = example_resample_wav(
+        mono_filepath = mono_filepath,
+        resampled_filepath = dst_filepath,
+        outrate = 22050
+    )
+    example_play_wav(audio_filepath_wav=resampled_filepath, play_secs=2)
     exit(0)
