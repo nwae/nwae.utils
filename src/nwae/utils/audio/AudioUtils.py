@@ -39,13 +39,15 @@ class AudioUtils:
         try:
             p = pyaudio.PyAudio()
 
-            with wave.open(wav_filepath, "rb") as wave_file:
-                format = p.get_format_from_width(wave_file.getsampwidth())
-                n_channels = wave_file.getnchannels()
-                frame_rate = wave_file.getframerate()
-                n_frames = wave_file.getnframes()
+            with wave.open(wav_filepath, "rb") as f:
+                format = p.get_format_from_width(f.getsampwidth())
+                n_channels = f.getnchannels()
+                frame_rate = f.getframerate()
+                n_frames = f.getnframes()
+                # Each frame contains all channel values, so should be 2 bytes * n_channels
+                bytes_per_frame = len(f.readframes(1))
 
-                return format, n_channels, frame_rate, n_frames
+                return format, n_channels, frame_rate, n_frames, bytes_per_frame
         except Exception as ex:
             raise Exception(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
@@ -140,21 +142,30 @@ class AudioUtils:
         n_frames = s_read.getnframes()
         n_channels = s_read.getnchannels()
         sampling_rate = s_read.getframerate()
-        data = s_read.readframes(n_frames)
+        # Read as bytes data type
+        data_bytes = s_read.readframes(n_frames)
         Log.info(
             str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
             + ': Source audio file "' + str(src_filepath) + '", ' + str(n_channels) + ' channels, '
-            + str(n_frames) + ' frames, total data length = ' + str(len(data))
+            + str(n_frames) + ' frames, total data bytes length = ' + str(len(data_bytes))
+        )
+
+        # Resample data
+        ratio_retain = float(outrate) / sampling_rate
+        retained_data_bytes = round(len(data_bytes) * ratio_retain)
+        Log.info(
+            str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+            + ': Try to resample from ' + str(sampling_rate) + 'Hz to '
+            + str(outrate) + 'Hz, or total samples '
+            + str(len(data_bytes)) + ' to ' + str(retained_data_bytes) + ' samples'
         )
 
         try:
-            # Resample data
-            number_of_samples = round(len(data) * float(outrate) / sampling_rate)
-            data_resampled = sps.resample(data, number_of_samples)
+            data_resampled = sps.resample(data_bytes, retained_data_bytes)
 
             Log.important(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                + ': Resampled from ' + str(len(data)) + ' frames to '
+                + ': Resampled from ' + str(len(data_bytes)) + ' frames to '
                 + str(len(data_resampled)) + ' frames'
             )
         except Exception as ex_down:
@@ -235,7 +246,7 @@ if __name__ == '__main__':
     )
     # print('Frame Rate = ' + str(obj.get_audio_file_properties(wav_filepath=obj.get_audio_filepath())))
     print(
-        'File "' + str(audio_file_wav) + '" Format, Channels, Frame Rate, N Frames = '
+        'File "' + str(audio_file_wav) + '" Format, Channels, Frame Rate, N Frames, Bytes Per Frame = '
         + str(obj.get_audio_file_properties(wav_filepath=audio_file_wav))
     )
 
@@ -243,17 +254,6 @@ if __name__ == '__main__':
     obj.play_wav(
         wav_filepath = audio_file_wav,
         play_secs = 2
-    )
-
-    dst_filepath = 'converted_8000.wav'
-    obj.convert_sampling_rate(
-        src_filepath = audio_file_wav,
-        dst_filepath = dst_filepath,
-        outrate = 8000
-    )
-    print(
-        'File "' + str(dst_filepath) + '" Format, Channels, Frame Rate, N Frames = '
-        + str(obj.get_audio_file_properties(wav_filepath=dst_filepath))
     )
 
     arr = obj.load_as_array(
@@ -273,5 +273,19 @@ if __name__ == '__main__':
     # ax.plot(x, y)
     plt.plot(x, y)
     plt.show()
+
+    #
+    # Resample
+    #
+    dst_filepath = 'converted_8000.wav'
+    obj.convert_sampling_rate(
+        src_filepath = audio_file_wav,
+        dst_filepath = dst_filepath,
+        outrate = 8000
+    )
+    print(
+        'File "' + str(dst_filepath) + '" Format, Channels, Frame Rate, N Frames = '
+        + str(obj.get_audio_file_properties(wav_filepath=dst_filepath))
+    )
 
     exit(0)
