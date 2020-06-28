@@ -15,6 +15,24 @@ import scipy.signal as sps
 import pyaudio
 from datetime import datetime
 
+
+#
+# wav format is something like this
+#
+#  (x1_c1 x1_c2), (x2_c1 x2_c2), (x3_c1, x3_c3), ...
+#
+# where x1 is sample 1, x2 is sample 2, x3 is sample 3, ...
+# and c1 is channel 1, c2 is channel 2.
+# (xn_c1, xn_c2) is 1 frame.
+#
+# Sample Width
+#   Sample width = 1 means x is 8 bits (unsigned)
+#   Sample width = 2 means x is 16 bits (signed)
+#
+# Thus
+#   total_bytes_per_frame = sample_width * n_channels
+#   total_bytes = total_bytes_per_frames * total_frames
+#
 class AudioWavProperties:
     def __init__(
             self,
@@ -23,9 +41,6 @@ class AudioWavProperties:
             frame_rate,
             n_frames,
             sample_width,
-            bytes_per_frame,
-            data_type,
-            data_bytes_len,
             data_bytes
     ):
         self.format = format
@@ -33,9 +48,19 @@ class AudioWavProperties:
         self.frame_rate = frame_rate
         self.n_frames = n_frames
         self.sample_width = sample_width
-        self.bytes_per_frame = bytes_per_frame
-        self.data_type = data_type
-        self.data_bytes_len = data_bytes_len
+
+        # total_bytes_per_frame = sample_width * n_channels
+        self.bytes_per_frame = int(self.n_channels * self.sample_width)
+
+        # Anything above 8 bits are signed, only 8-bit is unsigned
+        self.data_type = np.uint8
+        if self.sample_width == 2:
+            self.data_type = np.int16
+        else:
+            raise Exception('Wrong sample width ' + str(self.sample_width) + ' > 2')
+
+        # total_bytes = total_bytes_per_frames * total_frames
+        self.data_bytes_len = int(self.bytes_per_frame * self.n_frames)
         self.data_bytes = data_bytes
         return
 
@@ -81,14 +106,6 @@ class AudioUtils:
                 frame_rate = f.getframerate()
                 n_frames = f.getnframes()
                 sample_width = f.getsampwidth()
-                # Each frame contains all channel values, so should be 2 bytes * n_channels
-                bytes_per_frame = len(f.readframes(1))
-                # Anything above 8 bits are signed, only 8-bit is unsigned
-                data_type = np.uint8
-                if sample_width == 2:
-                    data_type = np.int16
-                else:
-                    raise Exception('Wrong sample width ' + str(sample_width) + ' > 2')
                 data_bytes = f.readframes(n_frames)
 
                 return AudioWavProperties(
@@ -97,9 +114,6 @@ class AudioUtils:
                     frame_rate = frame_rate,
                     n_frames   = n_frames,
                     sample_width = sample_width,
-                    bytes_per_frame = bytes_per_frame,
-                    data_type  = data_type,
-                    data_bytes_len = len(data_bytes),
                     data_bytes = data_bytes
                 )
         except Exception as ex:
