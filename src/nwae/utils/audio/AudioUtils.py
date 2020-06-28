@@ -246,7 +246,7 @@ class AudioUtils:
                 + ': Cannot open file "' + str(dst_filepath) + '" for writing: ' + str(ex_file)
             )
 
-        Log.info(
+        Log.debug(
             str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
             + ': Source audio file "' + str(src_filepath) + '", ' + str(wav_properties.n_channels) + ' channels, '
             + str(wav_properties.n_frames) + ' properties: ' + str(wav_properties.to_json())
@@ -254,7 +254,7 @@ class AudioUtils:
 
         ratio_retain_sample = float(outrate) / wav_properties.frame_rate
         n_retained_frames = round(wav_properties.n_frames * ratio_retain_sample)
-        Log.info(
+        Log.debug(
             str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
             + ': Try to resample from ' + str(wav_properties.frame_rate) + 'Hz to '
             + str(outrate) + 'Hz, or total frames  '
@@ -287,7 +287,7 @@ class AudioUtils:
                 )
                 data_resampled_final = data_resampled_final.astype(wav_properties.data_type)
 
-            Log.important(
+            Log.info(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
                 + ': Resampled from ' + str(wav_properties.n_frames) + ' frames to '
                 + str(len(data_resampled_final)) + ' frames'
@@ -309,7 +309,7 @@ class AudioUtils:
             resampled_properties = self.get_audio_file_properties(
                 wav_filepath = dst_filepath
             )
-            Log.important(
+            Log.info(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
                 + ': Resampled file "' + str(dst_filepath) + '" audio properties: ' + str(resampled_properties.to_json())
             )
@@ -364,7 +364,7 @@ class AudioUtils:
                 file   = filepath,
                 format = file_extension
             )
-            Log.info(
+            Log.debug(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
                 + ': Converting "' + str(filepath)
                 + '" to "' + str(filepath_converted) + '"..'
