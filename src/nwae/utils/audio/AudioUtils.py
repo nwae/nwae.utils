@@ -62,9 +62,25 @@ class AudioWavProperties:
         # total_bytes = total_bytes_per_frames * total_frames
         self.data_bytes_len = int(self.bytes_per_frame * self.n_frames)
         self.data_bytes = data_bytes
+
+        #
+        # Extract channel raw values
+        #
+        audio_as_np = np.frombuffer(self.data_bytes, dtype=self.data_type)
+        audio_as_np_float32 = audio_as_np.astype(np.float32)
+
+        # Normalise float32 array so that values are between -1.0 and +1.0
+        n_bits = 8*self.sample_width - 1
+        self.np_data_normalized = audio_as_np_float32 / (2**n_bits)
+
         return
 
-    def to_json(self):
+    def to_json(
+            self,
+            show_first_n_bytes = 10
+    ):
+        data_bytes_part = self.data_bytes[0:min(100, len(self.data_bytes))]
+        np_data_normalized_part = self.np_data_normalized[0:min(100, len(self.np_data_normalized))]
         return {
             'format': self.format,
             'n_channels': self.n_channels,
@@ -74,7 +90,8 @@ class AudioWavProperties:
             'bytes_per_frame': self.bytes_per_frame,
             'data_type': self.data_type,
             'data_bytes_len': self.data_bytes_len,
-            'data_bytes': 'First 100 bytes: ' + str(self.data_bytes[0:min(100, len(self.data_bytes))])
+            'data_bytes': 'First ' + str(show_first_n_bytes) + ' bytes: ' + str(data_bytes_part),
+            'np_data_normalized': 'First ' + str(show_first_n_bytes) + ' samples: ' + str(np_data_normalized_part)
         }
 
 
@@ -192,20 +209,7 @@ class AudioUtils:
         wav_properties = self.get_audio_file_properties(
             wav_filepath = audio_filepath
         )
-
-        audio_as_np = np.frombuffer(wav_properties.data_bytes, dtype=wav_properties.data_type)
-        audio_as_np_float32 = audio_as_np.astype(np.float32)
-
-        Log.info(
-            str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-            + ': Loaded audio "' + str(audio_filepath) + '" from ' + str(len(wav_properties.data_bytes))
-            + ' bytes to ' + str(len(audio_as_np_float32)) + ' samples.'
-        )
-
-        # Normalise float32 array so that values are between -1.0 and +1.0
-        n_bits = 8*wav_properties.sample_width - 1
-        audio_normalised = audio_as_np_float32 / (2**n_bits)
-        return audio_normalised
+        return wav_properties.np_data_normalized
 
     def convert_sampling_rate(
             self,
