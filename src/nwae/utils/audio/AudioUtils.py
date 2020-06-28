@@ -77,6 +77,7 @@ class AudioWavProperties:
             'data_bytes': 'First 100 bytes: ' + str(self.data_bytes[0:min(100, len(self.data_bytes))])
         }
 
+
 class AudioUtils:
 
     def __init__(
