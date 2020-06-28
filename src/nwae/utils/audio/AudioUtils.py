@@ -24,6 +24,7 @@ class AudioWavProperties:
             n_frames,
             sample_width,
             bytes_per_frame,
+            data_type,
             data_bytes
     ):
         self.format = format
@@ -32,6 +33,7 @@ class AudioWavProperties:
         self.n_frames = n_frames
         self.sample_width = sample_width
         self.bytes_per_frame = bytes_per_frame
+        self.data_type = data_type
         self.data_bytes = data_bytes
         return
 
@@ -77,6 +79,12 @@ class AudioUtils:
                 sample_width = f.getsampwidth()
                 # Each frame contains all channel values, so should be 2 bytes * n_channels
                 bytes_per_frame = len(f.readframes(1))
+                # Anything above 8 bits are signed, only 8-bit is unsigned
+                data_type = np.uint8
+                if sample_width == 2:
+                    data_type = np.int16
+                else:
+                    raise Exception('Wrong sample width ' + str(sample_width) + ' > 2')
                 data_bytes = f.readframes(n_frames)
 
                 return AudioWavProperties(
@@ -86,6 +94,7 @@ class AudioUtils:
                     n_frames   = n_frames,
                     sample_width = sample_width,
                     bytes_per_frame = bytes_per_frame,
+                    data_type  = data_type,
                     data_bytes = data_bytes
                 )
         except Exception as ex:
@@ -153,15 +162,7 @@ class AudioUtils:
             wav_filepath = audio_filepath
         )
 
-        # Convert buffer to float32 using NumPy
-        # Anything above 8 bits are signed, only 8-bit is unsigned
-        if wav_properties.sample_width == 1:
-            audio_as_np = np.frombuffer(wav_properties.data_bytes, dtype=np.uint8)
-        elif wav_properties.sample_width == 2:
-            audio_as_np = np.frombuffer(wav_properties.data_bytes, dtype=np.int16)
-        else:
-            raise Exception('Wrong sample width ' + str(wav_properties.sample_width))
-
+        audio_as_np = np.frombuffer(wav_properties.data_bytes, dtype=wav_properties.data_type)
         audio_as_np_float32 = audio_as_np.astype(np.float32)
 
         Log.info(
@@ -210,7 +211,11 @@ class AudioUtils:
         )
 
         try:
-            data_resampled = sps.resample(wav_properties.data_bytes, n_retained_data_bytes)
+            data_resampled = sps.resample(
+                np.frombuffer(wav_properties.data_bytes),
+                n_retained_data_bytes
+            )
+            data_resampled = data_resampled.astype(wav_properties.data_type)
 
             Log.important(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
@@ -224,8 +229,12 @@ class AudioUtils:
             )
 
         try:
-            s_write.setparams((outchannels, 2, outrate, 0, 'NONE', 'Uncompressed'))
-            s_write.writeframes(data_resampled)
+            s_write.setnchannels(wav_properties.n_channels)
+            s_write.setsampwidth(wav_properties.sample_width)
+            s_write.setframerate(outrate)
+            s_write.setnframes(len(data_resampled))
+            s_write.setcomptype(comptype='NONE', compname='Uncompressed')
+            s_write.writeframes(data_resampled.copy(order='C'))
         except Exception as ex_write:
             raise Exception(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
@@ -326,7 +335,7 @@ if __name__ == '__main__':
     #
     # Resample
     #
-    dst_filepath = 'converted_8000.wav'
+    dst_filepath = '/usr/local/git/nwae/nwae.lang/app.data/voice-recordings/converted_8000.wav'
     obj.convert_sampling_rate(
         src_filepath = audio_file_wav,
         dst_filepath = dst_filepath,
@@ -334,7 +343,7 @@ if __name__ == '__main__':
     )
     print(
         'File "' + str(dst_filepath) + '" Format, Channels, Frame Rate, N Frames = '
-        + str(obj.get_audio_file_properties(wav_filepath=dst_filepath))
+        + str(obj.get_audio_file_properties(wav_filepath=dst_filepath).to_json())
     )
 
     exit(0)
