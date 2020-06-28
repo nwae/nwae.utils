@@ -228,15 +228,6 @@ class AudioUtils:
         p.terminate()
         return
 
-    def load_as_np_array(
-            self,
-            audio_filepath
-    ):
-        wav_properties = self.get_audio_file_properties(
-            wav_filepath = audio_filepath
-        )
-        return wav_properties.np_data_normalized
-
     def convert_sampling_rate(
             self,
             # wav file format
@@ -437,15 +428,12 @@ def example_play_wav(
         wav_filepath = audio_filepath_wav,
         play_secs = play_secs
     )
+    wav_params = obj.get_audio_file_properties(wav_filepath=audio_filepath_wav)
+    print(wav_params.np_data_normalized.tolist()[0:10000])
 
-    arr = obj.load_as_np_array(
-        audio_filepath = audio_filepath_wav
-    )
-    print(arr.tolist()[0:10000])
-
-    l = min(len(arr), 200000)
+    l = min(len(wav_params.np_data_normalized), 200000)
     x = np.array(list(range(l)))
-    y = arr[0:l]
+    y = wav_params.np_data_normalized[0:l]
 
     import matplotlib.pyplot as plt
 
