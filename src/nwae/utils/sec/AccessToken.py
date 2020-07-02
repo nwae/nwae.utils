@@ -24,9 +24,11 @@ class AccessTokenSharedsecretChallenge:
     def __init__(
             self,
             shared_secret,
-            # We compare this to our own calculation to verify if the same or not
+            # Client send to server
+            # We compare this to our own calculation to verify if the same or not,
             test_challenge,
             # Random string sent to client as challenge
+            # For totp, not present
             challenge = None,
             algo_hash = Hash.ALGO_SHA256
     ):
@@ -36,6 +38,10 @@ class AccessTokenSharedsecretChallenge:
         self.algo_hash = algo_hash
         return
 
+    #
+    # Hash(challenge_string + shared_secret)
+    # to test if client passes challenge
+    #
     @staticmethod
     def create_test_challenge_string(
             shared_secret,
