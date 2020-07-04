@@ -73,6 +73,26 @@ class BaseDataCache(threading.Thread):
         finally:
             DerivedClass.SINGLETON_OBJECT_MUTEX.release()
 
+    @staticmethod
+    def stop_singleton_job(
+            DerivedClass,
+            cache_identifier
+    ):
+        DerivedClass.SINGLETON_OBJECT_MUTEX.acquire()
+        try:
+            lg.Log.critical(
+                str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                + ': Stopping cache "' + str(cache_identifier) + '"..'
+            )
+            DerivedClass.SINGLETON_OBJECT[cache_identifier].join()
+        except Exception as ex:
+            errmsg = str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno)\
+                     + ': Exception stopping singleton object for cache identifier "' + str(cache_identifier)\
+                     + '". Exception message: ' + str(ex) + '.'
+            lg.Log.critical(errmsg)
+        finally:
+            DerivedClass.SINGLETON_OBJECT_MUTEX.release()
+
     def __init__(
             self,
             cache_identifier,
@@ -430,6 +450,11 @@ class BaseDataCache(threading.Thread):
             if time_elapsed_modulo > self.reload_all_every_n_secs:
                 time_elapsed_modulo = 0
 
+        lg.Log.critical(
+            str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+            + ': Cache "' + str(self.cache_identifier) + '" DONE'
+        )
+
         return
 
 
@@ -537,5 +562,6 @@ if __name__ == '__main__':
         print(ex)
 
     print('Stopping job...')
-    obj.join(timeout=5)
+    BaseDataCache.stop_singleton_job(DerivedClass=MyCache, cache_identifier=cache_identifier)
+    # obj.join(timeout=5)
     print('Done')
