@@ -3,8 +3,7 @@
 # Script name is the first parameter on command line
 SCRIPT_NAME="$0"
 
-PYTHON=/usr/local/bin/python3.6
-PIP=/usr/local/bin/pip3.6
+PYTHON=/usr/local/bin/python3.8
 
 PIP_VERSION=
 

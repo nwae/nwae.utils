@@ -9,7 +9,7 @@ SCRIPT_NAME="$0"
 # Where this script is relative to project directory
 PROGRAM_NAME="UNIT TEST"
 SCRIPT_DIR="deploy-scripts"
-PYTHON_VER="3.6"
+PYTHON_VER="3.8"
 SOURCE_DIR="../src"
 COMPILE_MODULE="."
 MODULE_TO_RUN="nwae.utils.UnitTest"
@@ -128,7 +128,7 @@ fi
 export PYTHONIOENCODING=utf-8
 
 exit_status=0
-echo "[$SCRIPT_NAME] Starting $PROGRAM_NAME.."
+echo "[$SCRIPT_NAME] Starting $PROGRAM_NAME using $PYTHON_BIN.."
 if PYTHONPATH="$PROJECTDIR"/"$SOURCE_DIR":"$EXTERNAL_SRC_FOLDERS" \
       $PYTHON_BIN -m "$MODULE_TO_RUN" \
          configfile="$CONFIGFILE" \

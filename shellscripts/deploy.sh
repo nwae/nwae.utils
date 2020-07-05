@@ -33,12 +33,16 @@ CF=
 CONFIGFILE=
 PORT=
 TEST_CMD=
+# By default run the unit tests
+DO_UNIT_TEST="1"
 
 for keyvalue in "$@"; do
     echo "[$SCRIPT_NAME] Key value pair [$keyvalue]"
     IFS='=' # space is set as delimiter
     read -ra KV <<< "$keyvalue" # str is read into an array as tokens separated by IFS
-    if [ "$KV" == "cf" ] ; then
+    if [ "$KV" == "unittest" ] ; then
+        DO_UNIT_TEST="${KV[1]}"
+    elif [ "$KV" == "cf" ] ; then
         CF="${KV[1]}"
         if [ "$CF" == "local" ] ; then
             CONFIGFILE="$CONFIGFILE_LOCAL"
@@ -83,20 +87,22 @@ sleep 0.5
 #
 # Unit Tests
 #
-if [ "$UNIT_TEST_SCRIPT" == "" ]; then
-  echo "[$SCRIPT_NAME] MISSING No unit test script specified."
-  exit 1
-else
-  if "$UNIT_TEST_SCRIPT" \
-        configfile="$CONFIGFILE" \
-        port="$PORT"; then
-    echo "[$SCRIPT_NAME] OK. Unit Tests PASS."
-  else
-    echo "[$SCRIPT_NAME] ERROR Unit Tests FAIL."
+if [ "$DO_UNIT_TEST" == "1" ] ; then
+  if [ "$UNIT_TEST_SCRIPT" == "" ]; then
+    echo "[$SCRIPT_NAME] MISSING No unit test script specified."
     exit 1
+  else
+    if "$UNIT_TEST_SCRIPT" \
+          configfile="$CONFIGFILE" \
+          port="$PORT"; then
+      echo "[$SCRIPT_NAME] OK. Unit Tests PASS."
+    else
+      echo "[$SCRIPT_NAME] ERROR Unit Tests FAIL."
+      exit 1
+    fi
   fi
+  sleep 0.5
 fi
-sleep 0.5
 
 #
 # Kill Processes wrapped in gunicorn

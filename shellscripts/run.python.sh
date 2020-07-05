@@ -10,7 +10,7 @@ SCRIPT_NAME="$0"
 PROGRAM_NAME="nwae utils"
 SCRIPT_DIR="deploy-scripts"
 COMPULSORY_CMDLINE_PARAMS=""
-PYTHON_VER="3.6"
+PYTHON_VER="3.8"
 USE_GUNICORN=0
 GUNICORN_WORKERS=2
 # sync (CPU intensive), gthread (I/O intensive)
@@ -163,7 +163,7 @@ fi
 export PYTHONIOENCODING=utf-8
 
 if [ $USE_GUNICORN -eq 0 ]; then
-  echo "[$SCRIPT_NAME] Starting $PROGRAM_NAME.."
+  echo "[$SCRIPT_NAME] Starting $PROGRAM_NAME using $PYTHON_BIN.."
   PYTHONPATH="$PROJECTDIR"/"$SOURCE_DIR":"$EXTERNAL_SRC_FOLDERS" \
      $PYTHON_BIN -m "$MODULE_TO_RUN" \
        configfile="$CONFIGFILE" \
