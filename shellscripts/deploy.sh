@@ -8,13 +8,14 @@ SCRIPT_NAME="$0"
 ########################################################################################
 # Where this script is relative to project directory
 PROGRAM_NAME="YOUR PROGRAM NAME"
+# All paths are relative to this deploy script folder
 UNIT_TEST_SCRIPT="./run.ut.sh"
 RUN_SCRIPT="./run.python.sh"
 KILL_SCRIPT="./kill.by.port.sh"
 CLEANUP_SCRIPT=""
 LOGFILE_FOLDER=".."
 DO_TEST_AFTER_START=0
-# Config Files
+# Config Files, paths relative to the source code or /src folder
 CONFIGFILE_LOCAL="../app.data/config/local.cf"
 CONFIGFILE_LIVE="../app.data/config/live.cf"
 CONFIGFILE_STAGING="../app.data/config/staging.cf"
