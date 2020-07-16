@@ -41,13 +41,15 @@ class EmailAlerts:
             self,
             text_subject,
             text_msg,
+            files,
             ignore_limit
     ):
         email_msg = SendMail.prepare_message(
             from_addr     = self.from_addr,
             to_addrs_list = self.alert_recipients,
             subject       = text_subject,
-            text          = text_msg
+            text          = text_msg,
+            files         = files
         )
         try:
             # Check how many already sent this hour
@@ -98,11 +100,13 @@ class EmailAlerts:
             self,
             text_subject,
             text_msg,
+            files = None,
             ignore_limit = False
     ):
         self.__send_email(
             text_subject = text_subject,
             text_msg     = text_msg,
+            files        = files,
             ignore_limit = ignore_limit
         )
         return
@@ -119,7 +123,8 @@ if __name__ == '__main__':
 
     em_alert.send_alerts(
         text_subject = 'Alert XXX',
-        text_msg     = 'Test alert XXX'
+        text_msg     = 'Test alert XXX',
+        files        = ['/tmp/pic1.png', '/tmp/pic2.png']
     )
 
     em_alert.fake_send = True
