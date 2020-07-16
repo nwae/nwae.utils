@@ -1,12 +1,18 @@
 # -*- coding: utf-8 -*-
 
 import smtplib
-import ssl
+import os
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.utils import formatdate
 from nwae.utils.Log import Log
 from inspect import getframeinfo, currentframe
 
 
 class SendMail:
+
+    COMMASPACE = ', '
 
     PORT_SSL = 465
     PORT_SMTP = 587
@@ -17,17 +23,46 @@ class SendMail:
             from_addr,
             to_addrs_list,
             subject,
-            text
+            text,
+            files = None
     ):
-        message = """From: %s\nTo: %s\nSubject: %s\n\n%s
-            """ % (from_addr, ", ".join(to_addrs_list), subject, text)
-        return message
+        try:
+            msg = MIMEMultipart()
+            msg['From'] = from_addr
+            msg['To'] = SendMail.COMMASPACE.join(to_addrs_list)
+            msg['Date'] = formatdate(localtime=True)
+            msg['Subject'] = subject
+
+            msg.attach(MIMEText(text))
+
+            for f in files or []:
+                with open(f, "rb") as fil:
+                    part = MIMEApplication(
+                        fil.read(),
+                        Name = os.path.basename(f)
+                    )
+                # After the file is closed
+                part['Content-Disposition'] = 'attachment; filename="%s"' % os.path.basename(f)
+                msg.attach(part)
+            return msg.as_string()
+        except Exception as ex:
+            errmsg = str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno)\
+                     + ': Error creating email message: ' + str(ex)
+            Log.error(errmsg)
+            raise Exception(errmsg)
+        #message = """From: %s\nTo: %s\nSubject: %s\n\n%s
+        #    """ % (from_addr, ", ".join(to_addrs_list), subject, text)
+        #return message
 
     def __init__(
             self,
-            mode = 'smtp'
+            mode = 'smtp',
+            mail_server_url = GMAIL_SMTP,
+            mail_server_port = PORT_SMTP
     ):
         self.mode = mode
+        self.mail_server_url = mail_server_url
+        self.mail_server_port = mail_server_port
         self.__init_smtp()
         return
 
@@ -36,18 +71,21 @@ class SendMail:
             # Create a secure SSL context
             # self.context = ssl.create_default_context()
             self.server = smtplib.SMTP_SSL(
-                host = SendMail.GMAIL_SMTP,
-                port = SendMail.PORT_SSL,
+                host = self.mail_server_url,
+                port = self.mail_server_port,
                 # context=self.context
             )
             self.server.ehlo()
         else:
-            self.server = smtplib.SMTP(host=SendMail.GMAIL_SMTP, port=SendMail.PORT_SMTP)
+            self.server = smtplib.SMTP(
+                host = self.mail_server_url,
+                port = self.mail_server_port
+            )
             self.server.ehlo()
             self.server.starttls()
         Log.important(
             str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
-            + ': SMTP SSL successfully initialized.'
+            + ': SMTP mode "' + str(self.mode) + '" successfully initialized.'
         )
         return
 
@@ -88,14 +126,18 @@ class SendMail:
 
 if __name__ == '__main__':
     user = '?@gmail.com'
-    receivers = ('mapktah@ya.ru')
+    receivers = ['mapktah@ya.ru']
     subject = 'Test mail Python'
     text = 'Test message from Python client'
     message = SendMail.prepare_message(
         from_addr = user,
         to_addrs_list = receivers,
         subject = subject,
-        text = text
+        text = text,
+        files = [
+            '/tmp/pic1.png',
+            '/tmp/pic2.png',
+        ]
     )
 
     # message = """From: From Kim Bon <kimbon@gmail.com>
