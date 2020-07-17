@@ -7,6 +7,7 @@ import nwae.utils.Log as lg
 from inspect import currentframe, getframeinfo
 import datetime as dt
 import threading
+import re
 
 
 #
@@ -24,7 +25,8 @@ class BaseConfig:
     @staticmethod
     def get_cmdline_params_and_init_config_singleton(
             Derived_Class,
-            default_config_file = None
+            default_config_file = None,
+            obfuscate_passwords = False
     ):
         # Default values
         pv = {
@@ -58,7 +60,8 @@ class BaseConfig:
         # Instantiate the Derived Class, not this base config
         #
         BaseConfig.SINGLETON[configfile] = Derived_Class(
-            config_file         = configfile
+            config_file         = configfile,
+            obfuscate_passwords = obfuscate_passwords
         )
         return BaseConfig.SINGLETON[configfile]
 
@@ -77,10 +80,12 @@ class BaseConfig:
     def __init__(
             self,
             config_file,
-            ignore_non_existant_config_file = False
+            ignore_non_existant_config_file = False,
+            obfuscate_passwords = False
     ):
         self.config_file = config_file
         self.ignore_non_existant_config_file = ignore_non_existant_config_file
+        self.obfuscate_passwords = obfuscate_passwords
 
         self.param_value = {}
         self.__mutex_reload_config = threading.Lock()
@@ -197,6 +202,23 @@ class BaseConfig:
             + '" set to ' + str(self.param_value[param]) + '.'
         )
 
+    def __obfuscate_passwords(
+            self,
+            param,
+            value
+    ):
+        try:
+            if self.obfuscate_passwords:
+                if re.match(pattern='[a-zA-Z_\-]*password', string=param):
+                    return '*****'
+            return value
+        except Exception as ex:
+            lg.Log.error(
+                str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                + ': Error obfuscate password param "' + str(param) + '", value "' + str(value) + '": ' + str(ex)
+            )
+            return value
+
     def reload_config(
             self
     ):
@@ -214,9 +236,11 @@ class BaseConfig:
             f = open(self.config_file, 'r', encoding='utf-8')
             linelist_file = f.readlines()
             f.close()
+
             lg.Log.important(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                + ': Config file "' + str(self.config_file) + '" read successfully: ' + str(linelist_file)
+                + ': Config file "' + str(self.config_file) + '" read successfully: '
+                + str([self.__obfuscate_passwords(param=l, value=l) for l in linelist_file])
             )
 
             linelist = []
@@ -242,9 +266,11 @@ class BaseConfig:
                     param = su.StringUtils.trim(arg_split[0].lower())
                     value = su.StringUtils.trim(arg_split[1])
                     tmp_param_value[param] = value
+
                     lg.Log.important(
                         str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                        + ': Set param "' + str(param) + '" to "' + str(value) + '"'
+                        + ': Set param "' + str(param) + '" to "'
+                        + str(self.__obfuscate_passwords(param=param, value=value)) + '"'
                     )
 
             self.param_value = tmp_param_value
@@ -252,7 +278,8 @@ class BaseConfig:
             lg.Log.important(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
                 + ': Read from app config file "' + str(self.config_file)
-                + ', file lines:\n\r' + str(linelist) + ', properties\n\r' + str(self.param_value)
+                + ', file lines: ' + str([self.__obfuscate_passwords(param=l, value=l) for l in linelist])
+                + ', properties: ' + str({k:self.__obfuscate_passwords(param=k, value=v) for k,v in self.param_value.items()})
             )
         except Exception as ex:
             errmsg = str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)\
@@ -268,22 +295,30 @@ class BaseConfig:
 if __name__ == '__main__':
     # config_file = '/usr/local/git/nwae/nwae/app.data/config/nwae.cf.local'
     import time
+    cffile = '/usr/local/git/nwae/nwae.utils/app.data/config/sample.cf'
+    obfuscate_pwd = True
+
     bconfig = BaseConfig.get_cmdline_params_and_init_config_singleton(
-        Derived_Class = BaseConfig
+        Derived_Class = BaseConfig,
+        default_config_file = cffile,
+        obfuscate_passwords = obfuscate_pwd
     )
     bconfig2 = BaseConfig.get_cmdline_params_and_init_config_singleton(
-        Derived_Class = BaseConfig
+        Derived_Class = BaseConfig,
+        default_config_file = cffile,
+        obfuscate_passwords = obfuscate_pwd
     )
     time.sleep(1)
     bconfig.reload_config()
 
     bconfig = BaseConfig(
-        config_file = '/usr/local/git/nwae/nwae/app.data/config/nwae.cf.local'
+        config_file = cffile,
+        obfuscate_passwords = obfuscate_pwd
     )
 
     bconfig.reload_config()
 
     while True:
         time.sleep(1)
-        print(bconfig.get_config(param='topdir'))
+        print(bconfig.get_config(param='name'))
         # print(bconfig.get_config(param='abc'))
