@@ -166,10 +166,8 @@ class BaseConfig:
         if param not in self.param_value.keys():
             self.param_value[param] = False
 
-        if (self.param_value[param] == '1') or (self.param_value[param] == True):
-            self.param_value[param] = True
-        else:
-            self.param_value[param] = False
+        self.param_value[param] = str(self.param_value[param]).lower() in ['1', '1.0', 'yes', 'y', "true"]
+
         lg.Log.important(
             str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
             + ': Convert to boolean param "' + str(param)
