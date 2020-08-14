@@ -18,6 +18,12 @@ class SendMail:
     PORT_SMTP = 587
     GMAIL_SMTP = 'smtp.gmail.com'
 
+    MAX_TOTAL_FILES_SIZE_MB_EMAIL_ATTCH = 25
+
+    MAIL_MODE_SSL  = 'ssl'
+    MAIL_MODE_SMTP = 'smtp'
+    MAIL_MODE_SMTP_STARTTLS = 'smtp-starttls'
+
     @staticmethod
     def prepare_message(
             from_addr,
@@ -35,7 +41,12 @@ class SendMail:
 
             msg.attach(MIMEText(text))
 
-            for f in files or []:
+            files_allowed = SendMail.__attach_file_check_validity_and_size(
+                files_attachment_list = files,
+                max_total_files_size = SendMail.MAX_TOTAL_FILES_SIZE_MB_EMAIL_ATTCH
+            )
+
+            for f in files_allowed or []:
                 with open(f, "rb") as fil:
                     part = MIMEApplication(
                         fil.read(),
@@ -54,9 +65,52 @@ class SendMail:
         #    """ % (from_addr, ", ".join(to_addrs_list), subject, text)
         #return message
 
+    @staticmethod
+    def __attach_file_check_validity_and_size(
+            files_attachment_list,
+            max_total_files_size = MAX_TOTAL_FILES_SIZE_MB_EMAIL_ATTCH
+    ):
+        if files_attachment_list is None:
+            return []
+
+        files_attachment_list_allowed = []
+
+        cum_size_mb = 0.0
+        for filepath in files_attachment_list:
+            if os.path.isfile(filepath):
+                Log.info(
+                    'File <' + str(__name__) + '> line ' + str(getframeinfo(currentframe()).lineno)
+                    + ': Attachment file path "' + str(Log.get_today_logfile_name()) + '" OK'
+                )
+            else:
+                Log.error(
+                    'File <' + str(__name__) + '> line ' + str(getframeinfo(currentframe()).lineno)
+                    + ': Invalid attachment file "' + str(filepath) + '", not attaching to email'
+                )
+                continue
+
+            fsize_bytes = os.path.getsize(filepath)
+            fsize_mb = round(fsize_bytes / (1024 * 1024), 2)
+
+            if fsize_mb+cum_size_mb < max_total_files_size:
+                files_attachment_list_allowed.append(filepath)
+                cum_size_mb += fsize_mb
+                Log.info(
+                    'File <' + str(__name__) + '> line ' + str(getframeinfo(currentframe()).lineno)
+                    + ': Appended file "' + str(filepath) + '" as email attachment size ' + str(fsize_mb)
+                    + 'MB, total cumulative ' + str(cum_size_mb) + 'MB'
+                )
+            else:
+                Log.warning(
+                    'File <' + str(__name__) + '> line ' + str(getframeinfo(currentframe()).lineno)
+                    + ': File "' + str(filepath) + '" too big ' + str(fsize_mb)
+                    + 'MB. Cumulative = ' + str(fsize_mb+cum_size_mb) + ' Not attaching to email'
+                )
+        return files_attachment_list_allowed
+
     def __init__(
             self,
-            mode = 'smtp',
+            mode = MAIL_MODE_SMTP,
             mail_server_url = GMAIL_SMTP,
             mail_server_port = PORT_SMTP
     ):
@@ -67,13 +121,19 @@ class SendMail:
         return
 
     def __init_smtp(self):
-        if self.mode == 'ssl':
+        if self.mode == self.MAIL_MODE_SSL:
             # Create a secure SSL context
             # self.context = ssl.create_default_context()
             self.server = smtplib.SMTP_SSL(
                 host = self.mail_server_url,
                 port = self.mail_server_port,
                 # context=self.context
+            )
+            self.server.ehlo()
+        elif self.mode == self.MAIL_MODE_SMTP:
+            self.server = smtplib.SMTP(
+                host=self.mail_server_url,
+                port=self.mail_server_port
             )
             self.server.ehlo()
         else:
@@ -147,7 +207,9 @@ if __name__ == '__main__':
     # This is a test e-mail message.
     # """
 
-    mail = SendMail()
+    mail = SendMail(
+        mode = SendMail.MAIL_MODE_SMTP_STARTTLS
+    )
     mail.send(
         user = user,
         password = 'password123',
