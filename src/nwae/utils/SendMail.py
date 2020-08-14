@@ -80,7 +80,7 @@ class SendMail:
             if os.path.isfile(filepath):
                 Log.info(
                     'File <' + str(__name__) + '> line ' + str(getframeinfo(currentframe()).lineno)
-                    + ': Attachment file path "' + str(Log.get_today_logfile_name()) + '" OK'
+                    + ': Attachment file path "' + str(filepath) + '" OK'
                 )
             else:
                 Log.error(
