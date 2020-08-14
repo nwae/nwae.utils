@@ -110,8 +110,8 @@ class SendMail:
 
     def __init__(
             self,
-            mode = MAIL_MODE_SMTP,
-            mail_server_url = GMAIL_SMTP,
+            mode             = MAIL_MODE_SMTP,
+            mail_server_url  = GMAIL_SMTP,
             mail_server_port = PORT_SMTP
     ):
         self.mode = mode
@@ -121,6 +121,11 @@ class SendMail:
         return
 
     def __init_smtp(self):
+        Log.important(
+            str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
+            + ': Trying to initialize mail server "' + str(self.mail_server_url)
+            + '" port ' + str(self.mail_server_port) + ' using mode "' + str(self.mode) + '"...'
+        )
         if self.mode == self.MAIL_MODE_SSL:
             # Create a secure SSL context
             # self.context = ssl.create_default_context()
@@ -157,14 +162,21 @@ class SendMail:
             message
     ):
         try:
-            self.server.login(
-                user = user,
-                password = password
-            )
-            Log.important(
-                str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                + ': Login for user "' + str(user) + '" successful.'
-            )
+            if password not in [None, '']:
+                self.server.login(
+                    user = user,
+                    password = password
+                )
+                Log.important(
+                    str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                    + ': Login for user "' + str(user) + '" successful.'
+                )
+            else:
+                # If no password passed in, no need to do login
+                Log.warning(
+                    str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                    + ': Not doing login for user "' + str(user) + '", no password given "' + str(password) + '"'
+                )
             self.server.sendmail(
                 from_addr = user,
                 to_addrs  = recipients_list,
@@ -173,9 +185,13 @@ class SendMail:
             Log.important(
                 str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
                 + ': Message from '+ str(user) + ' to ' + str(recipients_list)
-                + ' sent successfully.'
+                + ' sent successfully. Closing server..'
             )
             self.server.close()
+            Log.info(
+                str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                + ': Mail server "' + str(self.mail_server_url) + '" closed'
+            )
         except Exception as ex:
             errmsg = str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)\
                      + ': Exception sending mail from ' + str(user) + ' to ' + str(recipients_list)\
