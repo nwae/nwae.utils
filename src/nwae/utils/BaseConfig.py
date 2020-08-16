@@ -206,7 +206,7 @@ class BaseConfig:
     ):
         try:
             if self.obfuscate_passwords:
-                if re.match(pattern='[a-zA-Z_\-]*password', string=param):
+                if re.match(pattern='[a-zA-Z_\-]*(password|pwd|passwd)', string=param):
                     return '*****'
             return value
         except Exception as ex:
