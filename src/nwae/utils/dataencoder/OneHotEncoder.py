@@ -11,7 +11,7 @@ class OneHotEncoder:
     def __init__(
             self
     ):
-        self.unique_feature_dict = {}
+        self.feature_index_dict = {}
         return
 
     def create_unique_dictionary(
@@ -24,38 +24,37 @@ class OneHotEncoder:
         feature_list_unique.sort()
 
         # Creating the dictionary for the unique words
-        self.unique_feature_dict = {}
+        self.feature_index_dict = {}
         for i, tok in enumerate(feature_list_unique):
-            self.unique_feature_dict.update({
+            self.feature_index_dict.update({
                 tok: i
             })
-        return self.unique_feature_dict
+        return self.feature_index_dict
 
-    def get_unique_feature_dict(self):
-        return self.unique_feature_dict
+    def get_feature_index_dict(self):
+        return self.feature_index_dict
 
     def encode(
             self,
             feature_list,
             unique_feature_dict = None
     ):
-        if unique_feature_dict is None:
-            unique_feature_dict = self.create_unique_dictionary(
-                feature_list = feature_list
-            )
+        self.create_unique_dictionary(
+            feature_list = feature_list
+        )
 
         # Defining the number of features
-        n_features = len(unique_feature_dict)
+        n_features = len(self.feature_index_dict)
 
         # Getting all the unique features
-        features = list(unique_feature_dict.keys())
+        features = list(self.feature_index_dict.keys())
 
         # Creating the X and Y matrices using one hot encoding
         X = []
 
         for i, f in enumerate(features):
             # Getting the indices
-            feature_index = unique_feature_dict.get(f)
+            feature_index = self.feature_index_dict.get(f)
 
             # Creating the placeholders
             X_row = np.zeros(n_features)
@@ -85,12 +84,12 @@ class OneHotEncoderUnitTest:
         ]
         enc = OneHotEncoder()
         x_oh = enc.encode(
-            feature_list=token_list
+            feature_list = token_list
         )
-        unique_word_dict = enc.get_unique_feature_dict()
+        unique_word_dict = enc.get_feature_index_dict()
         l = len(x_oh[0])
         v = np.array(list(range(l)))
-        for i, t in enumerate(enc.get_unique_feature_dict().keys()):
+        for i, t in enumerate(enc.get_feature_index_dict().keys()):
             # Make sure the '1' is in the correct position
             res_final.update_bool(res_bool=ut.UnitTest.assert_true(
                 observed = np.sum(v * x_oh[i]) == unique_word_dict[t],
