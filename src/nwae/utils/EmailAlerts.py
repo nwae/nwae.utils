@@ -16,7 +16,7 @@ class EmailAlerts:
             # Default limit per hour
             limit_per_hour = 8,
             fake_send = False,
-            mail_mode = 'smtp',
+            mail_mode = SendMail.MAIL_MODE_SMTP,
             mail_server_url  = SendMail.GMAIL_SMTP,
             mail_server_port = SendMail.PORT_SMTP
     ):
@@ -114,8 +114,9 @@ class EmailAlerts:
 
 if __name__ == '__main__':
     em_alert = EmailAlerts(
+        mail_mode = 'smtp-starttls',
         from_addr = '?@gmail.com',
-        password  = 'password123',
+        password  = 'M@...',
         alert_recipients = ['mapktah@ya.ru'],
         limit_per_hour = 10,
         fake_send = False
