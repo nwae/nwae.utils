@@ -15,12 +15,18 @@ class EmailAlerts:
             alert_recipients,
             # Default limit per hour
             limit_per_hour = 8,
-            fake_send = False
+            fake_send = False,
+            mail_mode = SendMail.MAIL_MODE_SMTP,
+            mail_server_url  = SendMail.GMAIL_SMTP,
+            mail_server_port = SendMail.PORT_SMTP
     ):
         self.from_addr = from_addr
         self.password = password
         self.alert_recipients = alert_recipients
         self.fake_send = fake_send
+        self.mail_mode = mail_mode
+        self.mail_server_url = mail_server_url
+        self.mail_server_port = mail_server_port
 
         # Limit to
         self.limit_per_hour = limit_per_hour
@@ -35,13 +41,15 @@ class EmailAlerts:
             self,
             text_subject,
             text_msg,
+            files,
             ignore_limit
     ):
         email_msg = SendMail.prepare_message(
             from_addr     = self.from_addr,
             to_addrs_list = self.alert_recipients,
             subject       = text_subject,
-            text          = text_msg
+            text          = text_msg,
+            files         = files
         )
         try:
             # Check how many already sent this hour
@@ -70,7 +78,11 @@ class EmailAlerts:
                     + ' Message:\n\r' + str(email_msg)
                 )
             else:
-                SendMail().send(
+                SendMail(
+                    mode = self.mail_mode,
+                    mail_server_url  = self.mail_server_url,
+                    mail_server_port = self.mail_server_port
+                ).send(
                     user            = self.from_addr,
                     password        = self.password,
                     recipients_list = self.alert_recipients,
@@ -88,11 +100,13 @@ class EmailAlerts:
             self,
             text_subject,
             text_msg,
+            files = None,
             ignore_limit = False
     ):
         self.__send_email(
             text_subject = text_subject,
             text_msg     = text_msg,
+            files        = files,
             ignore_limit = ignore_limit
         )
         return
@@ -100,12 +114,21 @@ class EmailAlerts:
 
 if __name__ == '__main__':
     em_alert = EmailAlerts(
+        mail_mode = 'smtp-starttls',
         from_addr = '?@gmail.com',
-        password  = 'nwae',
-        alert_recipients = ['xxx@xxx'],
+        password  = 'M@...',
+        alert_recipients = ['mapktah@ya.ru'],
         limit_per_hour = 10,
-        fake_send = True
+        fake_send = False
     )
+
+    em_alert.send_alerts(
+        text_subject = 'Alert XXX',
+        text_msg     = 'Test alert XXX',
+        files        = ['/tmp/pic1.png', '/tmp/pic2.png']
+    )
+
+    em_alert.fake_send = True
 
     for i in range(20):
         print(i)
@@ -113,8 +136,8 @@ if __name__ == '__main__':
         if i == 18:
             ignore_limit = True
         em_alert.send_alerts(
-            text_subject = 'Alert Nwae',
-            text_msg     = 'Test alert Nwae',
+            text_subject = 'Alert XXX',
+            text_msg     = 'Test alert XXX',
             ignore_limit = ignore_limit
         )
     exit(0)

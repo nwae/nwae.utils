@@ -458,8 +458,9 @@ class UnitTestObjectPersistence:
             pass
 
     def run_unit_test(self):
-        obj_file_path = '/tmp/loadtest.objpers.obj'
-        lock_file_path = '/tmp/loadtest.objpers.obj.lock'
+        test_dir = '.'
+        obj_file_path = test_dir + '/loadtest.objpers.obj'
+        lock_file_path = test_dir + '/loadtest.objpers.obj.lock'
 
         #
         # If we don't do this the test will fail as the upcoming threads,
@@ -477,8 +478,8 @@ class UnitTestObjectPersistence:
         ).run_unit_test()
 
         res_other = nwaeut.ResultObj(count_ok=0, count_fail=0)
-        obj_file_path = '/tmp/objPersTest.b'
-        lock_file_path = '/tmp/lock.objPersTest.b'
+        obj_file_path = test_dir + '/objPersTest.b'
+        lock_file_path = test_dir + '/lock.objPersTest.b'
         self.__remove_files(obj_file_path=obj_file_path, lock_file_path=lock_file_path)
 
         objects = [
@@ -509,8 +510,8 @@ class UnitTestObjectPersistence:
             res_other.count_ok += 1 * ok
             res_other.count_fail += 1 * (not ok)
 
-        obj_file_path = '/tmp/objPersTestAtomicUpdate.d'
-        lock_file_path = '/tmp/lock.objPersTestAtomicUpdate.d'
+        obj_file_path = test_dir + '/objPersTestAtomicUpdate.d'
+        lock_file_path = test_dir + '/lock.objPersTestAtomicUpdate.d'
         self.__remove_files(obj_file_path=obj_file_path, lock_file_path=lock_file_path)
         x = ObjectPersistence(
             default_obj    = {},

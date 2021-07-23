@@ -1,9 +1,9 @@
 
 import requests
-import urllib.parse
 import json
 import nwae.utils.Log as lg
 from inspect import currentframe, getframeinfo
+from nwae.utils.Profiling import Profiling
 
 
 class Rest():
@@ -33,7 +33,7 @@ class Rest():
         lg.Log.debug(
             str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
             + ' ' + str(getframeinfo(currentframe()).lineno)
-            + ': Rest GET Request String [' + resturl + ']'
+            + ': Rest GET Request String "' + str(resturl) + '"'
         )
 
         # Return data
@@ -42,15 +42,23 @@ class Rest():
 
         # Make REST GET query
         try:
+            start_time = Profiling.start()
             restResponse = requests.get(
                 url     = resturl,
                 headers = headers,
                 verify  = verify,
                 timeout = timeout
             )
+            stop_time = Profiling.stop()
+            lg.Log.info(
+                str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
+                + ': GET Request "' + str(resturl) + '" took '
+                + str(Profiling.get_time_dif_secs(start=start_time, stop=stop_time))
+                + ' secs.'
+            )
         except Exception as ex:
             errmsg = str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)\
-                     + ': REST GET API ERROR. URL=' + resturl + ' Exception=' + str(ex)
+                     + ': REST GET API ERROR. URL=' + str(resturl) + ' Exception=' + str(ex)
             lg.Log.critical(errmsg)
             raise Exception(errmsg)
 
@@ -78,8 +86,7 @@ class Rest():
             # If response code is not ok (200), print the resulting http error code with description
             errmsg = str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)\
                      + ': REST GET RESPONSE ERROR. URL=[' +  str(resturl)\
-                     + ']. Status Code=' + str(restResponse.status_code)\
-                     + '. Response "' + str(restResponse) + '"'
+                     + ']. Status Code=' + str(restResponse.status_code)
             lg.Log.critical(errmsg)
             #restResponse.raise_for_status()
             raise Exception(errmsg)
@@ -108,6 +115,7 @@ class Rest():
 
         # Make REST POST query
         try:
+            start_time = Profiling.start()
             is_json_type = type(data) in [dict, list, tuple]
             if is_json_type:
                 lg.Log.debugdebug(str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
@@ -127,6 +135,13 @@ class Rest():
                     verify  = verify,
                     timeout = timeout
                 )
+            stop_time = Profiling.stop()
+            lg.Log.info(
+                str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
+                + ': POST Request "' + str(resturl) + '" took '
+                + str(Profiling.get_time_dif_secs(start=start_time, stop=stop_time))
+                + ' secs. Data: ' + str(data)
+            )
         except Exception as ex:
             errmsg = str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)\
                      + ': REST POST API ERROR. URL=' + resturl + ' Exception=' + str(ex)
@@ -137,6 +152,10 @@ class Rest():
                           + 'Rest POST Response Code ' + str(restResponse.status_code))
 
         # For successful API call, response code will be 200 (OK)
+        lg.Log.info(
+            str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno) \
+            + ': Rest response OK from "' + str(resturl) + '", content: ' + str(restResponse.content)
+        )
         if (restResponse.ok):
             try:
                 jData = json.loads(restResponse.content)
@@ -146,9 +165,10 @@ class Rest():
                 lg.Log.critical(errmsg)
                 raise Exception(errmsg)
 
-            lg.Log.debugdebug(str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
-                       + ": The response contains {0} properties".format(len(jData)))
-            lg.Log.debugdebug(jData)
+            if jData:
+                lg.Log.debugdebug(str(self.__class__) + ' ' + str(getframeinfo(currentframe()).lineno)
+                           + ": The response contains {0} properties".format(len(jData)))
+                lg.Log.debugdebug(jData)
 
             if return_true_false_status:
                 return True
@@ -290,4 +310,5 @@ if __name__ == '__main__':
             'User-Agent': 'request'
         }
     )
+
     print(rest_response)

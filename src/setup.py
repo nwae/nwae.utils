@@ -2,10 +2,11 @@ from setuptools import setup
 
 setup(
     name='nwae.utils',
-    version='1.8.2',
+    version='1.8.3',
     packages=[
         'nwae.utils',
         'nwae.utils.audio',
+        'nwae.utils.dataencoder',
         'nwae.utils.data',
         'nwae.utils.networking',
         'nwae.utils.sec',

@@ -6,6 +6,7 @@ src/nwae.utils.egg-info/top_level.txt
 src/nwae/utils/BaseConfig.py
 src/nwae/utils/Cleanup.py
 src/nwae/utils/CmdLine.py
+src/nwae/utils/Datetime.py
 src/nwae/utils/EmailAlerts.py
 src/nwae/utils/Encode.py
 src/nwae/utils/FileUtils.py
@@ -23,6 +24,7 @@ src/nwae/utils/ThreadGroup.py
 src/nwae/utils/UnitTest.py
 src/nwae/utils/audio/AudioUtils.py
 src/nwae/utils/data/BaseDataCache.py
+src/nwae/utils/dataencoder/OneHotEncoder.py
 src/nwae/utils/networking/Ssl.py
 src/nwae/utils/networking/WebSocketClient.py
 src/nwae/utils/sec/AccessToken.py

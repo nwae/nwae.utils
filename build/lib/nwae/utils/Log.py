@@ -159,6 +159,13 @@ class Log:
             )
 
     @staticmethod
+    def get_today_logfile_name():
+        # Prefix for log file as today's date so it won't grow too big
+        ymd = dt.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d')
+        logfile_name_today_date_prefix = Log.LOGFILE + '.' + ymd + '.txt'
+        return logfile_name_today_date_prefix
+
+    @staticmethod
     def log(
             s,
             encoding = 'utf-8',
@@ -188,8 +195,7 @@ class Log:
             return
 
         # Prefix for log file as today's date so it won't grow too big
-        ymd = dt.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d')
-        logfile_name_today_date_prefix = Log.LOGFILE + '.' + ymd
+        logfile_name_today_date_prefix = Log.get_today_logfile_name()
 
         try:
             f = None

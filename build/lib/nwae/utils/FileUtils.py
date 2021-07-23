@@ -2,6 +2,8 @@
 # --*-- coding: utf-8 --*--
 
 import nwae.utils.StringUtils as su
+from nwae.utils.Log import Log
+from inspect import getframeinfo, currentframe
 
 
 class FileUtils(object):
@@ -10,12 +12,21 @@ class FileUtils(object):
         return
 
     @staticmethod
-    def read_text_file(filepath, encoding='utf-8'):
+    def read_text_file(
+            filepath,
+            encoding = 'utf-8',
+            throw_exception = False,
+    ):
         try:
             fh = open(filepath, 'r', encoding=encoding)
         except IOError as e:
-            print('Can\'t open file [' + filepath + ']. ' + e.strerror)
-            return []
+            errmsg = str(__name__) + ' ' + str(getframeinfo(currentframe()).lineno) \
+                     + ': Cannot open file [' + str(filepath) + ']. ' + str(e)
+            Log.error(errmsg)
+            if throw_exception:
+                raise Exception(errmsg)
+            else:
+                return []
 
         lines = []
         for line in fh:
