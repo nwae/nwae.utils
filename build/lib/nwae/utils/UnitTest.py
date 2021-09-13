@@ -43,7 +43,7 @@ class UnitTestParams:
 
 
 class ResultObj:
-    def __init__(self, count_ok, count_fail):
+    def __init__(self, count_ok=0, count_fail=0):
         self.count_ok = count_ok
         self.count_fail = count_fail
 
