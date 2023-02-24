@@ -10,6 +10,10 @@ class Environ:
     def get_home_dir():
         return os.path.expanduser('~')
 
+    @staticmethod
+    def get_home_dowload_dir():
+        return os.path.expanduser('~') + '/Downloads'
+
 
 if __name__ == '__main__':
     print(Environ.get_home_dir())
