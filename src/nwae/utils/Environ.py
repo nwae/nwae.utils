@@ -11,7 +11,7 @@ class Environ:
         return os.path.expanduser('~')
 
     @staticmethod
-    def get_home_dowload_dir():
+    def get_home_download_dir():
         return os.path.expanduser('~') + '/Downloads'
 
 
