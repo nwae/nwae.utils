@@ -1,7 +1,7 @@
 import os
 
 
-class Environ:
+class Env:
 
     def __init__(self):
         return
@@ -16,5 +16,5 @@ class Environ:
 
 
 if __name__ == '__main__':
-    print(Environ.get_home_dir())
+    print(Env.get_home_dir())
     exit(0)
