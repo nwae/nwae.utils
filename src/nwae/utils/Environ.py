@@ -7,6 +7,10 @@ class Env:
         return
 
     @staticmethod
+    def get_directory_separator():
+        return '/' if os.name not in ['nt'] else '\\'
+
+    @staticmethod
     def get_home_dir():
         return os.path.expanduser('~')
 
