@@ -10,7 +10,22 @@ import threading
 class Profiling:
 
     def __init__(self):
+        self.time_records = {}
         return
+
+    def start_time_profiling(self, id):
+        self.time_records[id] = [self.start()]
+
+    def record_time_profiling(self, id, msg, logmsg=False):
+        self.time_records[id].append(self.stop())
+        dur_s = self.get_time_dif_secs(start=self.time_records[id][-2], stop=self.time_records[id][-1], decimals=5)
+        dur_cum_s = self.get_time_dif_secs(start=self.time_records[id][0], stop=self.time_records[id][-1], decimals=5)
+        if logmsg:
+            Log.info(
+                '[' + str(id) + '] Profile speed: ' + str(msg) + ' took ' + str(dur_s) + 's, cumulative now '
+                + str(dur_cum_s) + 's.'
+            )
+        return dur_s, dur_cum_s
 
     @staticmethod
     def start():
@@ -111,6 +126,11 @@ class ProfilingHelper:
 
 
 if __name__ == '__main__':
+    p = Profiling()
+    p.start_time_profiling(id='z')
+    for i in range(1000):
+        p.record_time_profiling(id='z', msg='test '+str(i), logmsg=True)
+    exit(0)
 
     a = Profiling.start()
     time.sleep(2.59384)
